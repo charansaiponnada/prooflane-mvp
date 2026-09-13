@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
+  ArrowRight,
   ArrowSquareOut,
+  Check,
   DoorOpen,
   DownloadSimple,
   Eye,
@@ -24,6 +27,7 @@ import {
 } from "cool-nwc/phala";
 import { verifyReceipt, type PinCheck, type TrustAnchor } from "@/lib/trust";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { ReceiptView } from "@/components/receipt-view";
 import { VerdictCard } from "@/components/verdict-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -80,28 +84,6 @@ const TRACE = `span agent.run            northstar-payment-agent 1.4.2
     approval.id = ${APPROVAL_ID}
   span tool.result        status=released`;
 
-function Step({
-  n,
-  title,
-  children,
-}: {
-  n: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-2 text-lg font-semibold">
-        <span className="flex size-6 items-center justify-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
-          {n}
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
 function Stat({ label, value, hint }: { label: string; value: string | number; hint: string }) {
   return (
     <Card size="sm">
@@ -116,6 +98,7 @@ function Stat({ label, value, hint }: { label: string; value: string | number; h
 
 export default function ControlRoomPage() {
   const router = useRouter();
+  const [stage, setStage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptV2 | null>(null);
   const [vault, setVault] = useState<Vault | null>(null);
@@ -149,6 +132,7 @@ export default function ControlRoomPage() {
       setVerdict(checked.verdict);
       setPin(checked.pin);
       toast.success("Receipt sealed — payment released");
+      setStage(2);
     } catch (e) {
       toast.error(
         `No receipt, no action — payment blocked: ${e instanceof Error ? e.message : String(e)}`
@@ -205,92 +189,180 @@ export default function ControlRoomPage() {
     downloadJson(`prooflane-audit-pack-${receipts.length}-receipts.json`, pack);
   }
 
+  const sealed = !!(receipt && verdict && vault);
+
+  /** The story, one chapter at a time. `happened` is the one-liner shown once the chapter has played out. */
+  const chapters = [
+    {
+      title: "The problem",
+      ask: "An AI agent is about to release $48,200. What evidence exists today?",
+      happened: "Today's only record is the operator's own trace — and it leaks the account number.",
+      done: stage > 0,
+    },
+    {
+      title: "The agent acts",
+      ask: "The same payment, routed through ProofLane's gateway.",
+      happened: "Policy approved the payment and a signed receipt was sealed before the money moved.",
+      done: sealed,
+    },
+    {
+      title: "Anyone can verify",
+      ask: "An auditor checks the receipt in their own browser — no access to our backend.",
+      happened: `Signatures, binding and log inclusion checked out: ${verdict?.ok ? "valid" : "pending"}.`,
+      done: sealed && stage > 2,
+    },
+    {
+      title: "Auditor asks one question",
+      ask: "The reviewer wants the approval ID — and nothing else.",
+      happened: disclosure
+        ? `Approval ID ${disclosure.d.value} released; ${disclosure.v.ok ? "it matched the sealed commitment" : "it did not match"}. Everything else stayed hidden.`
+        : "Skipped.",
+      done: !!disclosure,
+    },
+    {
+      title: "Someone tampers",
+      ask: "An insider edits the receipt: $48,200 → $4,820.",
+      happened: tampered
+        ? `The edit was caught: the tampered receipt is ${tampered.verdict.ok ? "valid (!)" : "invalid"}.`
+        : "Skipped.",
+      done: !!tampered,
+    },
+    {
+      title: "Hand over the evidence",
+      ask: "Export the audit pack — verifiable without this website.",
+      happened: "Evidence handed over.",
+      done: false,
+    },
+  ];
+  const last = chapters.length - 1;
+  const canNext = stage < last && (stage !== 1 || sealed);
+  const current = chapters[stage];
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, [role=dialog], [role=tablist]")) return;
+      if (e.key === "ArrowRight" && canNext) setStage((s) => s + 1);
+      if (e.key === "ArrowLeft") setStage((s) => Math.max(0, s - 1));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canNext]);
+
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">ProofLane Control Room</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          An AI agent releases a payment. ProofLane captures it at the tool
-          boundary and seals a portable CooL receipt that anyone can verify
-          without the operator&apos;s backend — or its sensitive data.
-        </p>
+        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Guided story · 3 minutes · use ← → to present
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight">What happens when an AI agent moves money</h1>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Step n={1} title="Today's evidence">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Operational trace</CardTitle>
-              <CardDescription>What OTel-style tracing captured for this action.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">
-                {TRACE}
-              </pre>
-            </CardContent>
-            <CardFooter className="flex-col items-start gap-1">
-              <span className="font-medium">Who controls this evidence?</span>
-              <span className="text-muted-foreground">
-                The operator — its backend, exporter, and retention settings. And
-                it contains the account number in plaintext.
-              </span>
-            </CardFooter>
-          </Card>
-        </Step>
-
-        <Step n={2} title="Capture through ProofLane">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Robot size={20} /> Northstar payment agent
-              </CardTitle>
-              <CardDescription>Synthetic data · tool northstar.payments.release</CardDescription>
-              <CardAction>
-                <StatusBadge status="neutral">
-                  <DoorOpen size={14} /> Gateway
-                </StatusBadge>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between">
-                <span className="text-muted-foreground">Amount</span>
-                <span className="font-mono text-2xl font-semibold tabular-nums">$48,200.00</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Beneficiary</span>
-                <span className="text-right">{PAYMENT.beneficiary}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Approval ID</span>
-                <span className="font-mono">{APPROVAL_ID}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Software</span>
-                <span className="font-mono">
-                  {SOFTWARE.name}@{SOFTWARE.version}
+      <ol className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {chapters.map((c, i) => {
+          const reachable = i <= 1 || sealed;
+          return (
+            <li key={c.title}>
+              <button
+                type="button"
+                disabled={!reachable}
+                onClick={() => setStage(i)}
+                className="flex w-full flex-col gap-1.5 text-left disabled:opacity-50"
+              >
+                <span
+                  className={cn(
+                    "h-1.5 rounded-full",
+                    i === stage ? "bg-primary" : i < stage || c.done ? "bg-primary/40" : "bg-muted"
+                  )}
+                />
+                <span className={cn("text-xs", i === stage ? "font-semibold" : "text-muted-foreground")}>
+                  {i + 1}. {c.title}
                 </span>
-              </div>
-              <Field orientation="horizontal">
-                <Switch id="sync" checked disabled />
-                <FieldLabel htmlFor="sync">
-                  Synchronous capture — no receipt, no action
-                </FieldLabel>
-              </Field>
-            </CardContent>
-            <CardFooter>
-              <Button size="lg" onClick={release} disabled={busy}>
-                {busy && <Spinner data-icon="inline-start" />}
-                {busy ? "Sealing receipt…" : receipt ? "Release another payment" : "Release $48,200 via ProofLane"}
-              </Button>
-            </CardFooter>
-          </Card>
-        </Step>
-      </div>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
 
-      {receipt && verdict && vault && (
-        <>
-          <Step n={3} title="Portable receipt, verified independently">
-            <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              <span className="flex size-7 items-center justify-center rounded-full bg-primary font-mono text-sm text-primary-foreground">
+                {stage + 1}
+              </span>
+              {current.title}
+            </h2>
+            <p className="text-muted-foreground">{current.ask}</p>
+          </div>
+
+          {stage === 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Operational trace</CardTitle>
+                <CardDescription>What OTel-style tracing captured for this action.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">{TRACE}</pre>
+              </CardContent>
+              <CardFooter className="flex-col items-start gap-1">
+                <span className="font-medium">Who controls this evidence?</span>
+                <span className="text-muted-foreground">
+                  The operator — its backend, exporter, and retention settings. And it contains the account number
+                  in plaintext.
+                </span>
+              </CardFooter>
+            </Card>
+          )}
+
+          {stage === 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Robot size={20} /> Northstar payment agent
+                </CardTitle>
+                <CardDescription>Synthetic data · tool northstar.payments.release</CardDescription>
+                <CardAction>
+                  <StatusBadge status="neutral">
+                    <DoorOpen size={14} /> Gateway
+                  </StatusBadge>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-mono text-2xl font-semibold tabular-nums">$48,200.00</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Beneficiary</span>
+                  <span className="text-right">{PAYMENT.beneficiary}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Approval ID</span>
+                  <span className="font-mono">{APPROVAL_ID}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Software</span>
+                  <span className="font-mono">
+                    {SOFTWARE.name}@{SOFTWARE.version}
+                  </span>
+                </div>
+                <Field orientation="horizontal">
+                  <Switch id="sync" checked disabled />
+                  <FieldLabel htmlFor="sync">Synchronous capture — no receipt, no action</FieldLabel>
+                </Field>
+              </CardContent>
+              <CardFooter>
+                <Button size="lg" onClick={release} disabled={busy}>
+                  {busy && <Spinner data-icon="inline-start" />}
+                  {busy ? "Sealing receipt…" : receipt ? "Release another payment" : "Release $48,200 via ProofLane"}
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {stage === 2 && receipt && verdict && (
+            <div className="grid gap-6 xl:grid-cols-2">
               <ReceiptView receipt={receipt} />
               <VerdictCard
                 verdict={verdict}
@@ -298,15 +370,14 @@ export default function ControlRoomPage() {
                 description="Computed in this browser from receipt bytes, against pinned operator keys and deployment measurement."
               />
             </div>
-          </Step>
+          )}
 
-          <Step n={4} title="Selective disclosure">
+          {stage === 3 && sealed && (
             <Card>
               <CardHeader>
                 <CardTitle>The reviewer asks for the approval ID — only that.</CardTitle>
                 <CardDescription>
-                  The operator opens one committed field. Payment details and
-                  the tool result stay sealed.
+                  The operator opens one committed field. Payment details and the tool result stay sealed.
                 </CardDescription>
                 <CardAction>
                   <Dialog>
@@ -320,9 +391,8 @@ export default function ControlRoomPage() {
                       <DialogHeader>
                         <DialogTitle>Disclose one field</DialogTitle>
                         <DialogDescription>
-                          The recipient gets the <span className="font-mono">state</span>{" "}
-                          plaintext ({APPROVAL_ID}) and its salt. Once disclosed,
-                          this field is no longer private from them.
+                          The recipient gets the <span className="font-mono">state</span> plaintext ({APPROVAL_ID})
+                          and its salt. Once disclosed, this field is no longer private from them.
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
@@ -352,15 +422,14 @@ export default function ControlRoomPage() {
                 </CardContent>
               )}
             </Card>
-          </Step>
+          )}
 
-          <Step n={5} title="Tamper attack">
+          {stage === 4 && verdict && (
             <Card>
               <CardHeader>
                 <CardTitle>Someone edits the receipt: $48,200 → $4,820</CardTitle>
                 <CardDescription>
-                  The input commitment is recomputed with the original salt so
-                  the receipt still looks well-formed.
+                  The input commitment is recomputed with the original salt so the receipt still looks well-formed.
                 </CardDescription>
                 <CardAction>
                   <Button variant="destructive" onClick={tamper}>
@@ -385,8 +454,8 @@ export default function ControlRoomPage() {
                         <ShieldWarning weight="fill" />
                         <AlertTitle>Forged disclosure also rejected</AlertTitle>
                         <AlertDescription className="break-all">
-                          Claiming the input said $4,820 against the untouched
-                          receipt: {tampered.disclosureVerdict.detail}
+                          Claiming the input said $4,820 against the untouched receipt:{" "}
+                          {tampered.disclosureVerdict.detail}
                         </AlertDescription>
                       </Alert>
                     </TabsContent>
@@ -394,66 +463,106 @@ export default function ControlRoomPage() {
                 </CardContent>
               )}
             </Card>
-          </Step>
+          )}
 
-          <Step n={6} title="Hand over the evidence">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Stat label="Attempted receipts" value={stats?.attempted ?? 0} hint="since gateway start" />
-              <Stat label="Sealed receipts" value={stats?.succeeded ?? 0} hint="payment released" />
-              <Stat label="Failed captures" value={stats?.failed ?? 0} hint="payment blocked" />
-              <Stat label="Dropped events" value={0} hint="sync path, no queue" />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={exportPack}>
-                <Export data-icon="inline-start" />
-                Export CooL audit pack ({receipts.length})
-              </Button>
-              <Button variant="outline" onClick={openInVerifier}>
-                <ArrowSquareOut data-icon="inline-start" />
-                Open in independent verifier
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => downloadJson("receipt.json", receipt)}
-              >
-                <DownloadSimple data-icon="inline-start" />
-                receipt.json
-              </Button>
-              {disclosure && (
-                <Button
-                  variant="outline"
-                  onClick={() => downloadJson("disclosure.json", disclosure.d)}
-                >
-                  <DownloadSimple data-icon="inline-start" />
-                  disclosure.json
+          {stage === 5 && sealed && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <Stat label="Attempted receipts" value={stats?.attempted ?? 0} hint="since gateway start" />
+                <Stat label="Sealed receipts" value={stats?.succeeded ?? 0} hint="payment released" />
+                <Stat label="Failed captures" value={stats?.failed ?? 0} hint="payment blocked" />
+                <Stat label="Dropped events" value={0} hint="sync path, no queue" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={exportPack}>
+                  <Export data-icon="inline-start" />
+                  Export CooL audit pack ({receipts.length})
                 </Button>
-              )}
-            </div>
-            <Alert>
-              <Terminal />
-              <AlertTitle>Don&apos;t trust this website either</AlertTitle>
-              <AlertDescription>
-                Verify the downloaded receipt with the CooL CLI on your own
-                machine:{" "}
-                <code className="font-mono text-foreground">
-                  npx -p cool-nwc cool verify receipt.json
-                </code>
-              </AlertDescription>
-            </Alert>
-            <Alert>
-              <Pulse />
-              <AlertTitle>Honest boundary</AlertTitle>
-              <AlertDescription>
-                This receipt proves the integrity of a captured execution
-                statement. It does not prove the decision was correct, fair,
-                safe, or legal; that every event was captured; that the
-                application didn&apos;t lie before capture; or hardware
-                security — attestation here is simulated.
-              </AlertDescription>
-            </Alert>
-          </Step>
-        </>
-      )}
+                <Button variant="outline" onClick={openInVerifier}>
+                  <ArrowSquareOut data-icon="inline-start" />
+                  Open in independent verifier
+                </Button>
+                <Button variant="outline" onClick={() => downloadJson("receipt.json", receipt)}>
+                  <DownloadSimple data-icon="inline-start" />
+                  receipt.json
+                </Button>
+                {disclosure && (
+                  <Button variant="outline" onClick={() => downloadJson("disclosure.json", disclosure.d)}>
+                    <DownloadSimple data-icon="inline-start" />
+                    disclosure.json
+                  </Button>
+                )}
+              </div>
+              <Alert>
+                <Terminal />
+                <AlertTitle>Don&apos;t trust this website either</AlertTitle>
+                <AlertDescription>
+                  Verify the downloaded receipt with the CooL CLI on your own machine:{" "}
+                  <code className="font-mono text-foreground">npx -p cool-nwc cool verify receipt.json</code>
+                </AlertDescription>
+              </Alert>
+              <Alert>
+                <Pulse />
+                <AlertTitle>Honest boundary</AlertTitle>
+                <AlertDescription>
+                  This receipt proves the integrity of a captured execution statement. It does not prove the decision
+                  was correct, fair, safe, or legal; that every event was captured; that the application didn&apos;t
+                  lie before capture; or hardware security — attestation here is simulated.
+                </AlertDescription>
+              </Alert>
+              <Button asChild variant="outline" className="self-start">
+                <a href="/console">
+                  Now try it on your own workspace
+                  <ArrowRight data-icon="inline-end" />
+                </a>
+              </Button>
+            </>
+          )}
+
+          <div className="flex items-center justify-between gap-2 border-t pt-4">
+            <Button variant="ghost" onClick={() => setStage((s) => s - 1)} disabled={stage === 0}>
+              <ArrowLeft data-icon="inline-start" />
+              Back
+            </Button>
+            {stage < last && (
+              <Button onClick={() => setStage((s) => s + 1)} disabled={!canNext}>
+                {stage === 1 && !sealed ? "Release the payment first" : `Next: ${chapters[stage + 1].title}`}
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-20 lg:self-start">
+          <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Story so far</span>
+          <ol className="flex flex-col">
+            {chapters.map((c, i) => {
+              const past = i < stage;
+              return (
+                <li key={c.title} className="relative flex gap-3 pb-4 last:pb-0">
+                  {i < last && <span className="absolute top-6 bottom-0 left-[11px] w-px bg-border" />}
+                  <span
+                    className={cn(
+                      "relative flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs",
+                      past ? "bg-primary text-primary-foreground" : i === stage ? "ring-2 ring-primary" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {past ? <Check weight="bold" size={12} /> : i + 1}
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className={cn("text-sm", i === stage ? "font-semibold" : past ? "font-medium" : "text-muted-foreground")}>
+                      {c.title}
+                    </span>
+                    {past && <span className="text-xs text-muted-foreground">{c.happened}</span>}
+                    {i === stage && <span className="text-xs text-primary">You are here</span>}
+                    {i === stage + 1 && <span className="text-xs text-muted-foreground">Up next</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
+      </div>
     </div>
   );
 }

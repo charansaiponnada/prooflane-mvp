@@ -14,7 +14,13 @@ import {
   TreeStructure,
   ArrowRight,
   Check,
+  Cpu,
+  Gavel,
+  Plugs,
+  Receipt,
+  UsersThree,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ReceiptV2 } from "cool-nwc";
 import type { CaptureStats } from "cool-nwc/phala";
@@ -59,7 +65,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { setHash, useHash } from "@/hooks/use-hash";
-import { CONSOLE_SECTIONS, sectionOf } from "@/lib/console-sections";
+import { CONSOLE_SECTIONS, sectionOf, type ConsoleSection } from "@/lib/console-sections";
 import { COOL_SDK_URL, COOL_USAGE, REPO_URL, sourceUrl, type CoolMetric } from "@/lib/cool-usage";
 import type { DisclosureRequest, Entry, Workspace } from "@/lib/ledger";
 import { HIGH_VALUE_THRESHOLD, PAYMENT_POLICY } from "@/lib/policy";
@@ -178,13 +184,22 @@ function Onboarding() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <section className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">ProofLane Console</h1>
-        <p className="text-sm text-muted-foreground">
-          Put an evidence gateway in front of your agent&apos;s consequential tools.
-          Every call is policy-checked and sealed into a CooL receipt before it runs.
+    <div className="mx-auto flex max-w-5xl flex-col gap-10">
+      <section className="flex flex-col items-center gap-3 text-center">
+        <StatusBadge status="neutral">Evidence gateway for AI agents</StatusBadge>
+        <h1 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          Let your agents move money. Prove every decision.
+        </h1>
+        <p className="max-w-2xl text-muted-foreground">
+          ProofLane sits between your AI agent and the tools that matter. Every call is checked against policy and
+          sealed into a receipt that auditors can verify themselves — without seeing your customers&apos; data.
         </p>
+        <Button asChild variant="link" size="sm">
+          <Link href="/demo">
+            New here? Watch the 3-minute story first
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
       </section>
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -234,7 +249,43 @@ function Onboarding() {
           </CardFooter>
         </Card>
       </div>
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1 text-center">
+          <h2 className="text-lg font-semibold">How your company uses ProofLane</h2>
+          <p className="text-sm text-muted-foreground">Four steps, four teams, one evidence trail.</p>
+        </div>
+        <ol className="grid gap-6 md:grid-cols-4">
+          {STAGES.map((s, i) => {
+            const Icon = STAGE_ICONS[s.id];
+            return (
+              <li key={s.id} className="relative flex flex-col gap-2 rounded-xl border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon size={20} />
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">0{s.stage}</span>
+                </div>
+                <span className="font-semibold">{s.label}</span>
+                <span className="text-xs font-medium tracking-wide text-primary uppercase">{s.who}</span>
+                <p className="text-sm text-muted-foreground">{s.blurb}</p>
+                {i < STAGES.length - 1 && <Connector />}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
     </div>
+  );
+}
+
+const STAGES = CONSOLE_SECTIONS.filter((s) => s.stage !== null);
+const STAGE_ICONS = { integrate: Plugs, run: Gavel, ledger: Receipt, auditors: UsersThree } as Record<string, typeof Plugs>;
+
+function Connector() {
+  return (
+    <span className="absolute top-1/2 -right-6 hidden w-6 -translate-y-1/2 justify-center text-muted-foreground md:flex">
+      <ArrowRight size={16} />
+    </span>
   );
 }
 
@@ -289,9 +340,14 @@ function WorkspaceConsole({ session }: { session: Session }) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-center gap-3">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground">
+          {session.name.trim().charAt(0).toUpperCase()}
+        </span>
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{session.name}</h1>
-          <span className="font-mono text-xs text-muted-foreground">{session.workspaceId}</span>
+          <span className="font-mono text-xs text-muted-foreground">
+            Pilot workspace · payment.release · {session.workspaceId}
+          </span>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {stats && (
@@ -314,12 +370,14 @@ function WorkspaceConsole({ session }: { session: Session }) {
         <TabsList className="h-auto flex-wrap self-center">
           {CONSOLE_SECTIONS.map((s) => (
             <TabsTrigger key={s.id} value={s.id}>
+              {s.stage && <span className="font-mono text-xs text-muted-foreground">{s.stage}</span>}
               {s.label}
               {s.id === "ledger" && ` (${rows.length})`}
               {s.id === "auditors" && pending ? ` (${pending})` : ""}
             </TabsTrigger>
           ))}
         </TabsList>
+        <SectionIntro id={section} />
         <TabsContent value="overview">
           <Overview stats={stats} rows={rows} trust={trust} />
         </TabsContent>
@@ -467,7 +525,13 @@ function Playground({ client, onDone }: { client: ProofLane; onDone: () => Promi
           <Alert variant={outcome.ok ? "default" : "destructive"}>
             {outcome.ok ? <ShieldCheck weight="fill" /> : <ShieldWarning weight="fill" />}
             <AlertTitle>{outcome.title}</AlertTitle>
-            <AlertDescription>{outcome.detail}</AlertDescription>
+            <AlertDescription className="flex flex-col items-start gap-2">
+              {outcome.detail}
+              <Button size="sm" variant="outline" onClick={() => setHash("ledger")}>
+                Next: see the receipt
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
         <Card>
@@ -771,7 +835,7 @@ function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; tr
   ] as const;
   return (
     <div className="flex flex-col gap-4">
-      <GettingStarted stats={stats} />
+      <Journey stats={stats} rows={rows} />
       {c.failed ? (
         <Alert variant="destructive">
           <ShieldWarning weight="fill" />
@@ -808,99 +872,133 @@ function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; tr
 
 /* ── getting started ──────────────────────────────────────────────────── */
 
-function GettingStarted({ stats }: { stats: Stats | null }) {
+/** Banner under the tabs: which step this is, who owns it, and where to go next. */
+function SectionIntro({ id }: { id: ConsoleSection }) {
+  const i = CONSOLE_SECTIONS.findIndex((s) => s.id === id);
+  const s = CONSOLE_SECTIONS[i];
+  const next = CONSOLE_SECTIONS[i + 1];
+  if (id === "overview") return null;
+  return (
+    <div className="my-4 flex flex-wrap items-center gap-4 rounded-xl border bg-muted/40 p-4">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary font-mono text-primary-foreground">
+        {s.stage ?? <Cpu size={18} />}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {s.stage ? `Step ${s.stage} of 4` : "Reference"} · for {s.who}
+        </span>
+        <h2 className="text-lg font-semibold">{s.title}</h2>
+        <p className="text-sm text-muted-foreground">{s.blurb}</p>
+      </div>
+      {next && (
+        <Button variant="outline" size="sm" onClick={() => setHash(next.id)}>
+          Next: {next.label}
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** The customer lifecycle, with live progress from this workspace's receipts. */
+function Journey({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
   const c = stats?.counters ?? {};
-  const steps = [
-    {
-      title: "Watch policy block a payment",
-      detail: "Run agent → preset “$48,200 · one approver”. CooL policy escalates it and seals the refusal as a receipt.",
-      done: (c.blocked ?? 0) > 0,
-      section: "run",
-      cta: "Run agent",
+  const valid = rows.filter((r) => r.verdict.ok && (!r.pin || r.pin.ok)).length;
+  const progress: Record<string, { done: boolean; metric: string | number; unit: string; todo: string; cta: string }> = {
+    integrate: {
+      done: (c.attempted ?? 0) > 0,
+      metric: c.attempted ?? 0,
+      unit: "actions routed",
+      todo: "Copy your API key and wrap a tool with proof.guard() — or skip ahead and use the built-in test agent.",
+      cta: "Get API key",
     },
-    {
-      title: "Release under dual control",
-      detail: "Preset “$48,200 · dual control”. Authorization and outcome are sealed under one execution id — open them in Ledger.",
+    run: {
+      done: (c.blocked ?? 0) > 0 && (c.authorized ?? 0) > 0,
+      metric: `${c.authorized ?? 0} / ${c.blocked ?? 0}`,
+      unit: "authorized / blocked",
+      todo: "Run “$48,200 · one approver” to watch policy block it, then “dual control” to release it.",
+      cta: "Run test agent",
+    },
+    ledger: {
       done: (c.completed ?? 0) > 0,
-      section: "run",
-      cta: "Run agent",
+      metric: stats?.log_size ?? 0,
+      unit: `receipts · ${valid}/${rows.length} valid`,
+      todo: "Open any receipt: account numbers stay hidden, and the signature checks out in your browser.",
+      cta: "Open ledger",
     },
-    {
-      title: "Share with an auditor",
-      detail: "Auditors → Create link. Open it in a private window: every receipt re-verifies there. Request the state field.",
-      done: (c.shares ?? 0) > 0,
-      section: "auditors",
-      cta: "Create link",
-    },
-    {
-      title: "Approve the disclosure",
-      detail: "Auditors → Approve. CooL checks the value against the sealed commitment before the auditor sees it.",
+    auditors: {
       done: (c.disclosed ?? 0) > 0,
-      section: "auditors",
-      cta: "Review requests",
+      metric: c.shares ?? 0,
+      unit: `evidence rooms · ${c.disclosed ?? 0} fields released`,
+      todo: "Create a link, open it in a private window, request one field, then approve it here.",
+      cta: "Share evidence",
     },
-  ];
-  const doneCount = steps.filter((s) => s.done).length;
-  const next = steps.find((s) => !s.done);
+  };
+  const next = STAGES.find((s) => !progress[s.id].done);
+  const doneCount = STAGES.filter((s) => progress[s.id].done).length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Getting started</CardTitle>
-        <CardDescription>
-          {next
-            ? "Four steps walk through the whole product. Each one checks itself off from your workspace's real receipts."
-            : "All done. See exactly where the CooL SDK ran for each step."}
-        </CardDescription>
-        <CardAction>
-          <StatusBadge status={next ? "neutral" : "verified"}>
-            {doneCount}/{steps.length} done
-          </StatusBadge>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {steps.map((step, i) => (
-            <li
-              key={step.title}
-              className={cn("flex flex-col gap-2 rounded-lg border p-3", step === next && "border-primary")}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs",
-                    step.done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {step.done ? <Check weight="bold" /> : i + 1}
-                </span>
-                <span className="text-sm leading-tight font-medium">{step.title}</span>
-              </div>
-              <p className="flex-1 text-xs text-muted-foreground">{step.detail}</p>
-              <Button size="sm" variant={step === next ? "default" : "outline"} onClick={() => setHash(step.section)}>
-                {step.cta}
-                <ArrowRight data-icon="inline-end" />
-              </Button>
-            </li>
-          ))}
-          <li className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
-            <div className="flex items-center gap-2">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs text-muted-foreground">
-                5
-              </span>
-              <span className="text-sm leading-tight font-medium">See where CooL ran</span>
-            </div>
-            <p className="flex-1 text-xs text-muted-foreground">
-              The CooL SDK tab maps every step above to the CooL API that sealed, verified, or disclosed it.
-            </p>
-            <Button size="sm" variant={next ? "outline" : "default"} onClick={() => setHash("cool")}>
-              CooL SDK
+    <div className="flex flex-col gap-4">
+      <Card className={cn("border-l-4", next ? "border-l-brand" : "border-l-verified")}>
+        <CardHeader>
+          <CardDescription className="text-xs font-medium tracking-wide uppercase">
+            {next ? `Your next step · ${doneCount} of 4 done` : "All 4 steps done"}
+          </CardDescription>
+          <CardTitle className="text-xl font-semibold">
+            {next ? `Step ${next.stage}: ${next.title}` : "Your workspace is audit-ready"}
+          </CardTitle>
+          <CardDescription>
+            {next
+              ? progress[next.id].todo
+              : "Every agent action is policy-checked, receipted, and shareable. See what CooL did at each step."}
+          </CardDescription>
+          <CardAction>
+            <Button onClick={() => setHash(next?.id ?? "cool")}>
+              {next ? progress[next.id].cta : "Under the hood"}
               <ArrowRight data-icon="inline-end" />
             </Button>
-          </li>
-        </ol>
-      </CardContent>
-    </Card>
+          </CardAction>
+        </CardHeader>
+      </Card>
+      <ol className="grid gap-6 md:grid-cols-4">
+        {STAGES.map((s, i) => {
+          const p = progress[s.id];
+          const Icon = STAGE_ICONS[s.id];
+          return (
+            <li key={s.id} className="relative">
+              <button
+                type="button"
+                onClick={() => setHash(s.id)}
+                className={cn(
+                  "flex h-full w-full flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50",
+                  s === next && "ring-2 ring-primary"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon size={20} />
+                  </span>
+                  {p.done ? (
+                    <StatusBadge status="verified">
+                      <Check weight="bold" /> done
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge status="neutral">{s === next ? "next" : "to do"}</StatusBadge>
+                  )}
+                </div>
+                <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Step {s.stage} · {s.who}
+                </span>
+                <span className="font-semibold">{s.label}</span>
+                <span className="text-3xl font-semibold tracking-tight tabular-nums">{p.metric}</span>
+                <span className="text-xs text-muted-foreground">{p.unit}</span>
+              </button>
+              {i < STAGES.length - 1 && <Connector />}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

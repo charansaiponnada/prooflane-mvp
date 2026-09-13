@@ -113,6 +113,9 @@ export function AppSidebar() {
                                 setHash(section.id);
                               }}
                             >
+                              {section.stage && (
+                                <span className="font-mono text-xs text-muted-foreground">{section.stage}</span>
+                              )}
                               {section.label}
                             </a>
                           </SidebarMenuSubButton>
