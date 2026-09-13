@@ -148,6 +148,22 @@ Type scale (Tailwind classes, use consistently — don't invent new sizes per sc
 
 ---
 
+### 2.2 Brand accent and chart palette (added for the product dashboard)
+
+Surfaces stay neutral. Two additions carry color beyond the status vocabulary:
+
+| Token | Light | Dark | Used for |
+|---|---|---|---|
+| `--brand` / `--primary` | `#0e7490` (white text, 5.36:1) | `#22b8cf` (near-black text, 8.17:1) | Primary buttons, focus ring, active sidebar item, deck emphasis |
+| `--chart-1` blue | `#2a78d6` | `#3987e5` | Authorized |
+| `--chart-2` orange | `#eb6834` | `#d95926` | Blocked by policy |
+| `--chart-3` aqua | `#1baf7a` | `#199e70` | Completed / failed outcomes |
+| `--chart-4` yellow | `#eda100` | `#c98500` | Disclosure events |
+
+Chart slots are assigned in this fixed order and validated with the dataviz palette validator (adjacent CVD ΔE ≥ 8.4, normal-vision ≥ 19.8 in both modes). Aqua and yellow sit below 3:1 on white, so every chart ships a legend, tooltip, and a table view. Chart colors never color text, and verified / invalid / simulated stay reserved for verdicts.
+
+---
+
 ## 3. Icons — Phosphor, monochrome
 
 ```tsx
@@ -269,6 +285,6 @@ This one card demonstrates every rule above: black/white surfaces via theme toke
 
 - No gradients, no glassmorphism, no colored shadows
 - No blue links or blue focus rings — use the `--ring` token (black in light, white in dark) for focus states
-- No more than the three status colors (verified / invalid / simulated) anywhere in the product
+- No color beyond the three status colors, the single brand accent, and the four validated chart slots (§2.2)
 - No Phosphor duotone/fill-color icon sets outside the status vocabulary above
 - No decorative illustration — if a screen feels empty, that's the strict palette doing its job; resist the urge to add color to fill space

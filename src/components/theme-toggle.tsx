@@ -9,9 +9,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/** Renders identically on server and client; CSS picks the icon from the `dark` class. */
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
 
   return (
     <Tooltip>
@@ -19,13 +19,14 @@ export function ThemeToggle() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-          onClick={() => setTheme(dark ? "light" : "dark")}
+          aria-label="Toggle theme"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
         >
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
+          <Sun size={15} className="hidden dark:block" />
+          <Moon size={15} className="dark:hidden" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{dark ? "Light mode" : "Dark mode"}</TooltipContent>
+      <TooltipContent>Toggle theme</TooltipContent>
     </Tooltip>
   );
 }

@@ -300,6 +300,7 @@ export async function stats(ws: Workspace) {
   return {
     workspace: ws,
     counters: Object.fromEntries(Object.entries(counters ?? {}).map(([k, v]) => [k, Number(v)])),
+    log_id: `prooflane/${ws.id}`,
     log_size: await kv.llen(`log:${ws.id}`),
     durable,
     // Measured by CooL on this serverless instance only.
@@ -324,6 +325,7 @@ export async function createShare(ws: Workspace, body: Record<string, unknown>) 
   };
   await kv.set(`share:${share.token}`, JSON.stringify(share), { px: SHARE_TTL_MS });
   await kv.rpush(`shares:${ws.id}`, share.token);
+  await kv.hincrby(`stats:${ws.id}`, "shares", 1);
   return { share };
 }
 

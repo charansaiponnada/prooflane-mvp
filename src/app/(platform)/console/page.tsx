@@ -10,9 +10,12 @@ import {
   ShieldCheck,
   ShieldWarning,
   SignOut,
+  GithubLogo,
+  TreeStructure,
 } from "@phosphor-icons/react";
 import type { ReceiptV2 } from "cool-nwc";
 import type { CaptureStats } from "cool-nwc/phala";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 import { ReceiptView } from "@/components/receipt-view";
 import { VerdictCard } from "@/components/verdict-card";
@@ -44,6 +47,17 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { setHash, useHash } from "@/hooks/use-hash";
+import { CONSOLE_SECTIONS, sectionOf } from "@/lib/console-sections";
+import { COOL_SDK_URL, COOL_USAGE, REPO_URL, sourceUrl, type CoolMetric } from "@/lib/cool-usage";
 import type { DisclosureRequest, Entry, Workspace } from "@/lib/ledger";
 import { HIGH_VALUE_THRESHOLD, PAYMENT_POLICY } from "@/lib/policy";
 import { verifyReceipt, type PinCheck, type TrustAnchor } from "@/lib/trust";
@@ -54,6 +68,7 @@ type Session = { workspaceId: string; name: string; apiKey: string };
 type Stats = {
   workspace: Workspace;
   counters: Record<string, number>;
+  log_id: string;
   log_size: number;
   durable: boolean;
   capture: CaptureStats | null;
@@ -99,7 +114,7 @@ function readVault(recordId: string): Vault | null {
   }
 }
 
-type Snapshot = { stats: Stats; rows: Row[]; requests: DisclosureRequest[] };
+type Snapshot = { stats: Stats; rows: Row[]; requests: DisclosureRequest[]; trust: TrustAnchor };
 
 async function snapshot(client: ProofLane): Promise<Snapshot> {
   const [stats, ledger, reqs, trust] = await Promise.all([
@@ -112,7 +127,7 @@ async function snapshot(client: ProofLane): Promise<Snapshot> {
   const rows = await Promise.all(
     ledger.entries.map(async (e) => ({ ...e, ...(await verifyReceipt(e.receipt, trust)) }))
   );
-  return { stats, rows, requests: reqs.requests };
+  return { stats, rows, requests: reqs.requests, trust };
 }
 
 export default function ConsolePage() {
@@ -240,12 +255,15 @@ function WorkspaceConsole({ session }: { session: Session }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [requests, setRequests] = useState<DisclosureRequest[]>([]);
+  const [trust, setTrust] = useState<TrustAnchor | null>(null);
   const [loading, setLoading] = useState(false);
+  const section = sectionOf(useHash());
 
   const apply = useCallback((data: Snapshot) => {
     setStats(data.stats);
     setRows(data.rows);
     setRequests(data.requests);
+    setTrust(data.trust);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -289,14 +307,22 @@ function WorkspaceConsole({ session }: { session: Session }) {
         </div>
       </section>
 
-      <Tabs defaultValue="run">
-        <TabsList>
-          <TabsTrigger value="run">Run agent</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger ({rows.length})</TabsTrigger>
-          <TabsTrigger value="auditors">Auditors{pending ? ` (${pending})` : ""}</TabsTrigger>
-          <TabsTrigger value="coverage">Coverage</TabsTrigger>
-          <TabsTrigger value="integrate">Integrate</TabsTrigger>
+      <Tabs value={section} onValueChange={setHash}>
+        <TabsList className="h-auto flex-wrap">
+          {CONSOLE_SECTIONS.map((s) => (
+            <TabsTrigger key={s.id} value={s.id}>
+              {s.label}
+              {s.id === "ledger" && ` (${rows.length})`}
+              {s.id === "auditors" && pending ? ` (${pending})` : ""}
+            </TabsTrigger>
+          ))}
         </TabsList>
+        <TabsContent value="overview">
+          <Overview stats={stats} rows={rows} trust={trust} />
+        </TabsContent>
+        <TabsContent value="cool">
+          <CoolUsagePanel stats={stats} rows={rows} trust={trust} />
+        </TabsContent>
         <TabsContent value="run">
           <Playground client={client} onDone={refresh} />
         </TabsContent>
@@ -305,9 +331,6 @@ function WorkspaceConsole({ session }: { session: Session }) {
         </TabsContent>
         <TabsContent value="auditors">
           <Auditors client={client} requests={requests} onDone={refresh} />
-        </TabsContent>
-        <TabsContent value="coverage">
-          <Coverage stats={stats} rows={rows} />
         </TabsContent>
         <TabsContent value="integrate">
           <Integrate apiKey={session.apiKey} />
@@ -730,18 +753,18 @@ function Auditors({
 
 /* ── coverage ─────────────────────────────────────────────────────────── */
 
-function Coverage({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
+function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; trust: TrustAnchor | null }) {
   const c = stats?.counters ?? {};
   const invalid = rows.filter((r) => !(r.verdict.ok && (!r.pin || r.pin.ok))).length;
   const tiles = [
-    ["Attempted actions", c.attempted ?? 0, "reached the gateway"],
-    ["Authorized", c.authorized ?? 0, "receipt sealed before the tool ran"],
-    ["Blocked by policy", c.blocked ?? 0, "refusal receipted, tool never ran"],
-    ["Completed", c.completed ?? 0, "outcome receipt sealed"],
-    ["Tool failures", c.tool_failed ?? 0, "failure receipted after authorization"],
-    ["Seal failures", c.failed ?? 0, "action denied — no receipt, no action"],
-    ["Log entries", stats?.log_size ?? 0, "one RFC 6962 tree for the workspace"],
-    ["Invalid receipts", invalid, "of the latest 50, re-verified here"],
+    ["Attempted actions", c.attempted ?? 0, "reached the gateway", "var(--brand)"],
+    ["Authorized", c.authorized ?? 0, "receipt sealed before the tool ran", "var(--chart-1)"],
+    ["Blocked by policy", c.blocked ?? 0, "refusal receipted, tool never ran", "var(--chart-2)"],
+    ["Completed", c.completed ?? 0, `outcome sealed · ${c.tool_failed ?? 0} tool failures`, "var(--chart-3)"],
+    ["Fields disclosed", c.disclosed ?? 0, `${c.shares ?? 0} evidence rooms shared`, "var(--chart-4)"],
+    ["Receipts sealed", stats?.log_size ?? 0, "entries in the workspace log", "var(--brand)"],
+    ["Seal failures", c.failed ?? 0, "no receipt, no action", "var(--invalid)"],
+    ["Invalid receipts", invalid, "of the latest 50, re-verified here", "var(--invalid)"],
   ] as const;
   return (
     <div className="flex flex-col gap-4">
@@ -753,8 +776,8 @@ function Coverage({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
         </Alert>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map(([label, value, hint]) => (
-          <Card key={label} size="sm">
+        {tiles.map(([label, value, hint, color]) => (
+          <Card key={label} size="sm" className="border-t-2" style={{ borderTopColor: color }}>
             <CardHeader>
               <CardDescription>{label}</CardDescription>
               <CardTitle className="font-mono text-2xl tabular-nums">{value}</CardTitle>
@@ -763,26 +786,259 @@ function Coverage({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
           </Card>
         ))}
       </div>
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>CooL capture path</CardTitle>
-          <CardDescription>Measured by the CooL capture queue on the serverless instance that answered.</CardDescription>
-          <CardAction>
-            <StatusBadge status="simulated">simulated TEE</StatusBadge>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="grid gap-2 font-mono text-xs sm:grid-cols-4">
-          <span>p50 enqueue {stats?.capture ? `${stats.capture.p50Ms.toFixed(3)} ms` : "—"}</span>
-          <span>p99 enqueue {stats?.capture ? `${stats.capture.p99Ms.toFixed(3)} ms` : "—"}</span>
-          <span>dropped {stats?.capture?.dropped ?? "—"}</span>
-          <span>high-water {stats?.capture?.highWater ?? "—"}</span>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ActivityChart rows={rows} />
+        <PolicyChart rows={rows} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <EvidencePlaneCard stats={stats} trust={trust} />
+        <RecentActivity rows={rows} />
+      </div>
     </div>
   );
 }
 
 /* ── integrate ────────────────────────────────────────────────────────── */
+
+/* ── overview charts & panels ─────────────────────────────────────────── */
+
+const activityConfig = {
+  authorized: { label: "Authorized", color: "var(--chart-1)" },
+  blocked: { label: "Blocked", color: "var(--chart-2)" },
+  outcome: { label: "Outcomes", color: "var(--chart-3)" },
+  disclosure: { label: "Disclosure events", color: "var(--chart-4)" },
+} satisfies ChartConfig;
+
+type ActivityKind = keyof typeof activityConfig;
+const kindOf = (type: string): ActivityKind =>
+  type.startsWith("evidence.")
+    ? "disclosure"
+    : type.endsWith(".blocked")
+      ? "blocked"
+      : type.endsWith(".authorized")
+        ? "authorized"
+        : "outcome";
+
+function ActivityChart({ rows }: { rows: Row[] }) {
+  const data = useMemo(() => {
+    const buckets = new Map<number, Record<ActivityKind, number>>();
+    for (const row of rows) {
+      const t = Math.floor(new Date(row.sealed_at).getTime() / 600_000) * 600_000;
+      const b = buckets.get(t) ?? { authorized: 0, blocked: 0, outcome: 0, disclosure: 0 };
+      b[kindOf(row.type)]++;
+      buckets.set(t, b);
+    }
+    return [...buckets.entries()]
+      .sort(([a], [b]) => a - b)
+      .slice(-12)
+      .map(([t, b]) => ({ time: new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), ...b }));
+  }, [rows]);
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Receipts sealed over time</CardTitle>
+        <CardDescription>Latest 50 receipts in 10-minute windows, by what they evidence.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Run the agent to see activity.</p>
+        ) : (
+          <ChartContainer config={activityConfig} className="aspect-auto h-64 w-full">
+            <BarChart data={data} accessibilityLayer>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="time" tickLine={false} axisLine={false} tickMargin={8} />
+              <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              {(Object.keys(activityConfig) as ActivityKind[]).map((key, i, all) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  stackId="receipts"
+                  fill={`var(--color-${key})`}
+                  stroke="var(--card)"
+                  strokeWidth={2}
+                  maxBarSize={24}
+                  radius={i === all.length - 1 ? [4, 4, 0, 0] : 0}
+                />
+              ))}
+            </BarChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const policyConfig = { count: { label: "Decisions", color: "var(--brand)" } } satisfies ChartConfig;
+
+function PolicyChart({ rows }: { rows: Row[] }) {
+  const data = PAYMENT_POLICY.rules.map((rule) => ({
+    rule: rule.id,
+    count: rows.filter((r) => r.rule === rule.id).length,
+  }));
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Policy decisions</CardTitle>
+        <CardDescription>Which CooL policy rule decided each action.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={policyConfig} className="aspect-auto h-64 w-full">
+          <BarChart data={data} layout="vertical" margin={{ left: 4, right: 28 }} accessibilityLayer>
+            <XAxis type="number" allowDecimals={false} hide />
+            <YAxis type="category" dataKey="rule" tickLine={false} axisLine={false} width={64} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} maxBarSize={24}>
+              <LabelList dataKey="count" position="right" className="fill-foreground" fontSize={12} />
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EvidencePlaneCard({ stats, trust }: { stats: Stats | null; trust: TrustAnchor | null }) {
+  const signingKey = Object.keys(trust?.key_directory ?? {}).find((k) => k.startsWith("cool-enclave")) ?? "—";
+  const capture = stats?.capture;
+  const rows = [
+    ["Log id", stats?.log_id ?? "—"],
+    ["Tree size", String(stats?.log_size ?? 0)],
+    ["Signing key", signingKey],
+    ["Measurement", trust ? `${trust.measurement.mrtd.slice(4, 20)}…` : "—"],
+    ["Capture p50 / p99", capture ? `${capture.p50Ms.toFixed(3)} / ${capture.p99Ms.toFixed(3)} ms` : "—"],
+    ["Dropped / high-water", capture ? `${capture.dropped} / ${capture.highWater}` : "—"],
+  ];
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TreeStructure size={18} /> Evidence plane
+        </CardTitle>
+        <CardDescription>CooL runtime backing this workspace.</CardDescription>
+        <CardAction>
+          <StatusBadge status="simulated">simulated TEE</StatusBadge>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">{k}</span>
+            <span className="truncate font-mono text-xs">{v}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentActivity({ rows }: { rows: Row[] }) {
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Recent activity</CardTitle>
+        <CardDescription>Newest receipts, re-verified in this browser.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {rows.length === 0 && <p className="text-sm text-muted-foreground">No receipts yet.</p>}
+        {rows.slice(0, 6).map((row) => {
+          const ok = row.verdict.ok && (!row.pin || row.pin.ok);
+          return (
+            <div key={row.record_id} className="flex items-center gap-3 text-sm">
+              <span className="size-2 shrink-0 rounded-full" style={{ background: `var(--chart-${["authorized", "blocked", "outcome", "disclosure"].indexOf(kindOf(row.type)) + 1})` }} />
+              <span className="font-mono text-xs">{row.type}</span>
+              <span className="hidden truncate text-muted-foreground md:inline">{row.summary}</span>
+              <span className="ml-auto font-mono text-xs text-muted-foreground">
+                {new Date(row.sealed_at).toLocaleTimeString()}
+              </span>
+              <StatusBadge status={ok ? "verified" : "invalid"}>{ok ? "valid" : "invalid"}</StatusBadge>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ── where the CooL SDK runs ──────────────────────────────────────────── */
+
+function CoolUsagePanel({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; trust: TrustAnchor | null }) {
+  const c = stats?.counters ?? {};
+  const passed = rows.filter((r) => r.verdict.ok && (!r.pin || r.pin.ok)).length;
+  const values: Record<CoolMetric, string> = {
+    sealed: String(stats?.log_size ?? 0),
+    evaluated: String(c.attempted ?? 0),
+    tree: String(stats?.log_size ?? 0),
+    measurement: trust ? `${trust.measurement.mrtd.slice(4, 12)}…` : "—",
+    verified: `${passed}/${rows.length}`,
+    disclosed: String(c.disclosed ?? 0),
+    shares: String(c.shares ?? 0),
+    p99: stats?.capture ? `${stats.capture.p99Ms.toFixed(2)} ms` : "—",
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Where CooL runs in this workspace</CardTitle>
+          <CardDescription>
+            Every trust claim on this page is computed by the CooL SDK (<span className="font-mono">cool-nwc</span>).
+            Steps 1–6 run in the gateway, step 7 runs in this browser, step 8 runs when you approve a disclosure. The
+            numbers are live for this workspace.
+          </CardDescription>
+          <CardAction className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href={COOL_SDK_URL} target="_blank" rel="noreferrer">
+                <GithubLogo data-icon="inline-start" />
+                CooL SDK
+              </a>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <a href={REPO_URL} target="_blank" rel="noreferrer">
+                Source
+              </a>
+            </Button>
+          </CardAction>
+        </CardHeader>
+      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {COOL_USAGE.map((u) => (
+          <Card key={u.step} size="sm" className={u.where === "browser" ? "border-t-2 border-t-brand" : undefined}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <span className="flex size-6 items-center justify-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
+                  {u.step}
+                </span>
+                <StatusBadge status="neutral">{u.where}</StatusBadge>
+              </div>
+              <CardTitle className="font-mono text-sm">{u.api}</CardTitle>
+              <CardDescription className="font-mono text-xs">{u.module}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-semibold tracking-tight">{values[u.metric]}</span>
+                <span className="text-xs text-muted-foreground">{u.metricLabel}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{u.purpose}</p>
+            </CardContent>
+            <CardFooter>
+              <a
+                href={sourceUrl(u.file)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                {u.file}
+              </a>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Integrate({ apiKey }: { apiKey: string }) {
   const origin = window.location.origin;

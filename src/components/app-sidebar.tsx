@@ -15,6 +15,8 @@ import {
   SquaresFour,
 } from "@phosphor-icons/react";
 import { COOL_URL, GITHUB_URL } from "@/components/brand";
+import { setHash, useHash } from "@/hooks/use-hash";
+import { CONSOLE_SECTIONS } from "@/lib/console-sections";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -28,6 +30,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
@@ -48,6 +53,8 @@ const resources = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const hash = useHash();
+  const onConsole = pathname.startsWith("/console");
 
   return (
     <Sidebar collapsible="icon">
@@ -90,6 +97,29 @@ export function AppSidebar() {
                       </span>
                     </Link>
                   </SidebarMenuButton>
+                  {item.href === "/console" && (
+                    <SidebarMenuSub>
+                      {CONSOLE_SECTIONS.map((section) => (
+                        <SidebarMenuSubItem key={section.id}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={onConsole && (hash || "overview") === section.id}
+                          >
+                            <a
+                              href={`/console#${section.id}`}
+                              onClick={(e) => {
+                                if (!onConsole) return; // full navigation lands on the section
+                                e.preventDefault();
+                                setHash(section.id);
+                              }}
+                            >
+                              {section.label}
+                            </a>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

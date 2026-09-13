@@ -31,6 +31,8 @@ A lean but complete product for one consequential action class — **payment rel
 | **Workspace ledger (SaaS)** — [`/console`](https://prooflane-mvp.vercel.app/console) | Create a workspace and API key, run the agent against live policy, browse the receipt ledger (every row re-verified in the browser against pinned keys), and watch coverage: attempted / authorized / blocked / completed / tool failures / seal failures / log size, plus CooL's measured capture latency. |
 | **Auditor evidence rooms** — `/share/<token>` | One link gives an auditor every receipt plus a CooL audit pack. They verify locally, see commitments instead of data, and request a single field. The operator approves by supplying the plaintext; CooL checks it against the sealed commitment before release. **Requests, approvals, and denials are themselves receipted** into the same log. |
 
+The Console opens on an **Overview dashboard** (colored KPI tiles, receipts-over-time and policy-decision charts, evidence-plane status, recent activity) and has a **CooL SDK** section showing, live for the workspace, each of the eight CooL APIs ProofLane calls, where it runs, and a link to the source file. The **pitch deck** (`/pitch.html`) is a full-screen 16:9 presentation with speaker notes (`N`), a slide grid (`G`), fullscreen (`F`), an animated architecture diagram, receipt anatomy, and the CooL call map.
+
 Also included: the 3-minute **guided demo** (`/demo`: real $48,200 → $4,820 tamper attack), the standalone **independent verifier** (`/verifier`: receipts, audit packs, disclosures, pinned trust), and the **pitch** (`/pitch.html`).
 
 ### Payment policy (evaluated by the CooL policy engine)
