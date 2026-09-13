@@ -12,7 +12,10 @@ import {
   SignOut,
   GithubLogo,
   TreeStructure,
+  ArrowRight,
+  Check,
 } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
 import type { ReceiptV2 } from "cool-nwc";
 import type { CaptureStats } from "cool-nwc/phala";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
@@ -308,7 +311,7 @@ function WorkspaceConsole({ session }: { session: Session }) {
       </section>
 
       <Tabs value={section} onValueChange={setHash}>
-        <TabsList className="h-auto flex-wrap">
+        <TabsList className="h-auto flex-wrap self-center">
           {CONSOLE_SECTIONS.map((s) => (
             <TabsTrigger key={s.id} value={s.id}>
               {s.label}
@@ -768,6 +771,7 @@ function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; tr
   ] as const;
   return (
     <div className="flex flex-col gap-4">
+      <GettingStarted stats={stats} />
       {c.failed ? (
         <Alert variant="destructive">
           <ShieldWarning weight="fill" />
@@ -777,12 +781,14 @@ function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; tr
       ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map(([label, value, hint, color]) => (
-          <Card key={label} size="sm" className="border-t-2" style={{ borderTopColor: color }}>
-            <CardHeader>
-              <CardDescription>{label}</CardDescription>
-              <CardTitle className="font-mono text-2xl tabular-nums">{value}</CardTitle>
-              <CardDescription className="text-xs">{hint}</CardDescription>
-            </CardHeader>
+          <Card key={label} size="sm" className="border-l-4" style={{ borderLeftColor: color }}>
+            <CardContent className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="text-sm font-medium">{label}</span>
+                <span className="text-xs text-muted-foreground">{hint}</span>
+              </div>
+              <span className="text-4xl font-semibold tracking-tight tabular-nums">{value}</span>
+            </CardContent>
           </Card>
         ))}
       </div>
@@ -799,6 +805,104 @@ function Overview({ stats, rows, trust }: { stats: Stats | null; rows: Row[]; tr
 }
 
 /* ── integrate ────────────────────────────────────────────────────────── */
+
+/* ── getting started ──────────────────────────────────────────────────── */
+
+function GettingStarted({ stats }: { stats: Stats | null }) {
+  const c = stats?.counters ?? {};
+  const steps = [
+    {
+      title: "Watch policy block a payment",
+      detail: "Run agent → preset “$48,200 · one approver”. CooL policy escalates it and seals the refusal as a receipt.",
+      done: (c.blocked ?? 0) > 0,
+      section: "run",
+      cta: "Run agent",
+    },
+    {
+      title: "Release under dual control",
+      detail: "Preset “$48,200 · dual control”. Authorization and outcome are sealed under one execution id — open them in Ledger.",
+      done: (c.completed ?? 0) > 0,
+      section: "run",
+      cta: "Run agent",
+    },
+    {
+      title: "Share with an auditor",
+      detail: "Auditors → Create link. Open it in a private window: every receipt re-verifies there. Request the state field.",
+      done: (c.shares ?? 0) > 0,
+      section: "auditors",
+      cta: "Create link",
+    },
+    {
+      title: "Approve the disclosure",
+      detail: "Auditors → Approve. CooL checks the value against the sealed commitment before the auditor sees it.",
+      done: (c.disclosed ?? 0) > 0,
+      section: "auditors",
+      cta: "Review requests",
+    },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">Getting started</CardTitle>
+        <CardDescription>
+          {next
+            ? "Four steps walk through the whole product. Each one checks itself off from your workspace's real receipts."
+            : "All done. See exactly where the CooL SDK ran for each step."}
+        </CardDescription>
+        <CardAction>
+          <StatusBadge status={next ? "neutral" : "verified"}>
+            {doneCount}/{steps.length} done
+          </StatusBadge>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {steps.map((step, i) => (
+            <li
+              key={step.title}
+              className={cn("flex flex-col gap-2 rounded-lg border p-3", step === next && "border-primary")}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs",
+                    step.done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {step.done ? <Check weight="bold" /> : i + 1}
+                </span>
+                <span className="text-sm leading-tight font-medium">{step.title}</span>
+              </div>
+              <p className="flex-1 text-xs text-muted-foreground">{step.detail}</p>
+              <Button size="sm" variant={step === next ? "default" : "outline"} onClick={() => setHash(step.section)}>
+                {step.cta}
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            </li>
+          ))}
+          <li className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs text-muted-foreground">
+                5
+              </span>
+              <span className="text-sm leading-tight font-medium">See where CooL ran</span>
+            </div>
+            <p className="flex-1 text-xs text-muted-foreground">
+              The CooL SDK tab maps every step above to the CooL API that sealed, verified, or disclosed it.
+            </p>
+            <Button size="sm" variant={next ? "outline" : "default"} onClick={() => setHash("cool")}>
+              CooL SDK
+              <ArrowRight data-icon="inline-end" />
+            </Button>
+          </li>
+        </ol>
+      </CardContent>
+    </Card>
+  );
+}
 
 /* ── overview charts & panels ─────────────────────────────────────────── */
 
