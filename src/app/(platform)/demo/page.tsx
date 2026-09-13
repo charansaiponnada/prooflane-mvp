@@ -28,6 +28,7 @@ import {
 import { verifyReceipt, type PinCheck, type TrustAnchor } from "@/lib/trust";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { UsesCool } from "@/components/brand";
 import { ReceiptView } from "@/components/receipt-view";
 import { VerdictCard } from "@/components/verdict-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -201,18 +202,21 @@ export default function ControlRoomPage() {
     },
     {
       title: "The agent acts",
+      cool: "evaluate · CoolTee · tee.record",
       ask: "The same payment, routed through ProofLane's gateway.",
       happened: "Policy approved the payment and a signed receipt was sealed before the money moved.",
       done: sealed,
     },
     {
       title: "Anyone can verify",
+      cool: "verifyEvidence · withTrustedKeys",
       ask: "An auditor checks the receipt in their own browser — no access to our backend.",
       happened: `Signatures, binding and log inclusion checked out: ${verdict?.ok ? "valid" : "pending"}.`,
       done: sealed && stage > 2,
     },
     {
       title: "Auditor asks one question",
+      cool: "disclose · verifyDisclosure",
       ask: "The reviewer wants the approval ID — and nothing else.",
       happened: disclosure
         ? `Approval ID ${disclosure.d.value} released; ${disclosure.v.ok ? "it matched the sealed commitment" : "it did not match"}. Everything else stayed hidden.`
@@ -221,6 +225,7 @@ export default function ControlRoomPage() {
     },
     {
       title: "Someone tampers",
+      cool: "verifyEvidence · verifyDisclosure",
       ask: "An insider edits the receipt: $48,200 → $4,820.",
       happened: tampered
         ? `The edit was caught: the tampered receipt is ${tampered.verdict.ok ? "valid (!)" : "invalid"}.`
@@ -229,6 +234,7 @@ export default function ControlRoomPage() {
     },
     {
       title: "Hand over the evidence",
+      cool: "buildAuditPack · cool verify CLI",
       ask: "Export the audit pack — verifiable without this website.",
       happened: "Evidence handed over.",
       done: false,
@@ -294,6 +300,7 @@ export default function ControlRoomPage() {
               {current.title}
             </h2>
             <p className="text-muted-foreground">{current.ask}</p>
+            {current.cool && <UsesCool apis={current.cool} />}
           </div>
 
           {stage === 0 && (

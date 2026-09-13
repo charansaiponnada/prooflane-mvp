@@ -31,9 +31,9 @@ A lean but complete product for one consequential action class — **payment rel
 | **Workspace ledger (SaaS)** — [`/console`](https://prooflane-mvp.vercel.app/console) | Create a workspace and API key, run the agent against live policy, browse the receipt ledger (every row re-verified in the browser against pinned keys), and watch coverage: attempted / authorized / blocked / completed / tool failures / seal failures / log size, plus CooL's measured capture latency. |
 | **Auditor evidence rooms** — `/share/<token>` | One link gives an auditor every receipt plus a CooL audit pack. They verify locally, see commitments instead of data, and request a single field. The operator approves by supplying the plaintext; CooL checks it against the sealed commitment before release. **Requests, approvals, and denials are themselves receipted** into the same log. |
 
-The Console opens on an **Overview dashboard** (colored KPI tiles, receipts-over-time and policy-decision charts, evidence-plane status, recent activity) and has a **CooL SDK** section showing, live for the workspace, each of the eight CooL APIs ProofLane calls, where it runs, and a link to the source file. The **pitch deck** (`/pitch.html`) is a full-screen 16:9 presentation with speaker notes (`N`), a slide grid (`G`), fullscreen (`F`), an animated architecture diagram, receipt anatomy, and the CooL call map.
+The Console is organised as the customer lifecycle — **1 Connect** (engineering wraps a tool) → **2 Enforce** (risk & compliance: policy gates every call) → **3 Record** (operations: receipt ledger) → **4 Prove** (auditors: evidence rooms). Every tab opens with a banner naming the step, the team that owns it, a *uses CooL SDK* link where CooL does the work, and a **Next** button. The **Overview** shows a "your next step" card, a live 4-stage pipeline driven by the workspace's real receipts, colored KPI tiles, receipts-over-time and policy-decision charts, evidence-plane status, and recent activity. **Under the hood** is the CooL SDK section showing, live for the workspace, each of the eight CooL APIs ProofLane calls, where it runs, and a link to the source file. The **pitch deck** (`/pitch.html`) is a full-screen 16:9 presentation with speaker notes (`N`), a slide grid (`G`), fullscreen (`F`), an animated architecture diagram, receipt anatomy, and the CooL call map.
 
-Also included: the 3-minute **guided demo** (`/demo`: real $48,200 → $4,820 tamper attack), the standalone **independent verifier** (`/verifier`: receipts, audit packs, disclosures, pinned trust), and the **pitch** (`/pitch.html`).
+Also included: the 3-minute **guided story** (`/demo`: six presentable chapters — the problem → the agent acts → anyone can verify → auditor asks one question → someone tampers ($48,200 → $4,820) → hand over the evidence — with a progress rail, a "story so far" timeline, and ← → keyboard navigation), the standalone **independent verifier** (`/verifier`: receipts, audit packs, disclosures, pinned trust), and the **pitch** (`/pitch.html`).
 
 ### Payment policy (evaluated by the CooL policy engine)
 
@@ -166,11 +166,12 @@ const releasePayment = proof.guard("payment.release", bank.releasePayment, (args
 
 ### 3-minute judge walkthrough
 
-1. **Console** → create a workspace → **Run agent** with "$48,200 · one approver" → blocked by PAY-003, and the refusal is a receipt.
-2. Run "$48,200 · dual control" → authorized + completed. **Ledger** → open a receipt: hidden fields, valid verdict, pinned key.
-3. **Auditors** → create link → open it in a private window → everything re-verifies → **Request field** `state`.
-4. Back in Console → **Approve** → the auditor's page shows the approval ref, matched against the commitment.
-5. **Guided demo** → change $48,200 → $4,820 → invalid.
+1. **Guided story** (`/demo`) → press → through the six chapters: release $48,200, verify it, disclose one field, watch the $4,820 tamper fail, export the audit pack.
+2. **Console** → create a workspace → follow the **Your next step** card on Overview.
+3. **2 Enforce** → run "$48,200 · one approver" → blocked by PAY-003, and the refusal is a receipt. Run "$48,200 · dual control" → authorized + completed.
+4. **3 Record** → open a receipt: hidden fields, valid verdict, pinned key.
+5. **4 Prove** → create link → open it in a private window → everything re-verifies → **Request field** `state` → back in Console, **Approve** → the auditor's page shows the approval ref, matched against the commitment.
+6. **Under the hood** → every CooL API behind those steps, with live numbers.
 
 ## 6. Technical decisions
 

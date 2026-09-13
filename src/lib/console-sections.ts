@@ -7,6 +7,7 @@ export const CONSOLE_SECTIONS = [
     title: "Workspace overview",
     who: "Everyone",
     blurb: "Where your agents stand today and what to do next.",
+    cool: null,
   },
   {
     id: "integrate",
@@ -15,6 +16,7 @@ export const CONSOLE_SECTIONS = [
     title: "Connect your agent",
     who: "Engineering",
     blurb: "Wrap the tools that move money with proof.guard(). One import, no agent rewrite.",
+    cool: null,
   },
   {
     id: "run",
@@ -23,6 +25,7 @@ export const CONSOLE_SECTIONS = [
     title: "Enforce payment policy",
     who: "Risk & compliance",
     blurb: "Every call is checked against policy before it runs. Try the built-in test agent.",
+    cool: "evaluate · tee.record",
   },
   {
     id: "ledger",
@@ -31,6 +34,7 @@ export const CONSOLE_SECTIONS = [
     title: "Receipt ledger",
     who: "Operations",
     blurb: "Every approval, refusal and outcome as a signed receipt, re-verified in your browser.",
+    cool: "verifyEvidence · withTrustedKeys",
   },
   {
     id: "auditors",
@@ -39,6 +43,7 @@ export const CONSOLE_SECTIONS = [
     title: "Share with auditors",
     who: "Auditors, customers, insurers",
     blurb: "Give reviewers one link. They verify everything and see only the fields you release.",
+    cool: "buildAuditPack · disclose · verifyDisclosure",
   },
   {
     id: "cool",
@@ -47,6 +52,7 @@ export const CONSOLE_SECTIONS = [
     title: "Where CooL runs",
     who: "Security review",
     blurb: "Each CooL SDK call behind the steps above, with live numbers.",
+    cool: "8 APIs",
   },
 ] as const;
 

@@ -21,6 +21,7 @@ import {
   UsersThree,
 } from "@phosphor-icons/react";
 import Link from "next/link";
+import { UsesCool } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { ReceiptV2 } from "cool-nwc";
 import type { CaptureStats } from "cool-nwc/phala";
@@ -268,6 +269,7 @@ function Onboarding() {
                 <span className="font-semibold">{s.label}</span>
                 <span className="text-xs font-medium tracking-wide text-primary uppercase">{s.who}</span>
                 <p className="text-sm text-muted-foreground">{s.blurb}</p>
+                {s.cool && <UsesCool apis={s.cool} />}
                 {i < STAGES.length - 1 && <Connector />}
               </li>
             );
@@ -889,6 +891,7 @@ function SectionIntro({ id }: { id: ConsoleSection }) {
         </span>
         <h2 className="text-lg font-semibold">{s.title}</h2>
         <p className="text-sm text-muted-foreground">{s.blurb}</p>
+        {s.cool && <UsesCool apis={s.cool} />}
       </div>
       {next && (
         <Button variant="outline" size="sm" onClick={() => setHash(next.id)}>
@@ -965,12 +968,12 @@ function Journey({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
           const p = progress[s.id];
           const Icon = STAGE_ICONS[s.id];
           return (
-            <li key={s.id} className="relative">
+            <li key={s.id} className="relative flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={() => setHash(s.id)}
                 className={cn(
-                  "flex h-full w-full flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50",
+                  "flex w-full flex-1 flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50",
                   s === next && "ring-2 ring-primary"
                 )}
               >
@@ -993,6 +996,11 @@ function Journey({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
                 <span className="text-3xl font-semibold tracking-tight tabular-nums">{p.metric}</span>
                 <span className="text-xs text-muted-foreground">{p.unit}</span>
               </button>
+              {s.cool && (
+                <span className="px-1">
+                  <UsesCool apis={s.cool} />
+                </span>
+              )}
               {i < STAGES.length - 1 && <Connector />}
             </li>
           );
