@@ -4,8 +4,8 @@
 
 > The evidence does not have to come from a system you trust.
 
-- **Live demo:** _VERCEL_URL_
-- **Pitch:** _VERCEL_URL_/pitch.html
+- **Live demo:** https://prooflane-mvp.vercel.app
+- **Pitch:** https://prooflane-mvp.vercel.app/pitch.html
 - **Docs:** [`docs/PRD.md`](docs/PRD.md) · [`docs/GTM.md`](docs/GTM.md) · [`docs/DESIGN.MD`](docs/DESIGN.MD)
 
 ---
