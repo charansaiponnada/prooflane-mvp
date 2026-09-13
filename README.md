@@ -1,154 +1,160 @@
 # ProofLane
 
-**The evidence gateway for AI agents that move money — built on the [CooL SDK](https://github.com/Northwind-Cipher/cool-sdk) (`cool-nwc`).**
+**Proof you can check for every payment an AI agent makes. Built on the [CooL SDK](https://github.com/Northwind-Cipher/cool-sdk).**
 
-ProofLane gates consequential agent actions on policy, seals every decision into an independently verifiable CooL receipt, and lets auditors verify that evidence — and request single fields — without trusting the operator's logs or seeing its customers' data.
+[![Live demo](https://img.shields.io/badge/Live_demo-Open_on_Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://prooflane-mvp.vercel.app)
+[![Watch the video](https://img.shields.io/badge/Watch-3_min_video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/p-M4uQmwT1I)
+[![npm](https://img.shields.io/npm/v/prooflane-sdk?style=for-the-badge&logo=npm&label=prooflane-sdk&color=CB3837)](https://www.npmjs.com/package/prooflane-sdk)
+[![Built with CooL SDK](https://img.shields.io/badge/Built_with-CooL_SDK-2563EB?style=for-the-badge)](https://github.com/Northwind-Cipher/cool-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge)](LICENSE)
 
-> The evidence does not have to come from a system you trust.
+[![Guided demo](https://img.shields.io/badge/Guided_demo-111827?style=flat-square&logo=youtubeshorts&logoColor=white)](https://prooflane-mvp.vercel.app/demo)
+[![Console](https://img.shields.io/badge/Console-111827?style=flat-square)](https://prooflane-mvp.vercel.app/console)
+[![Verifier](https://img.shields.io/badge/Verifier-111827?style=flat-square)](https://prooflane-mvp.vercel.app/verifier)
+[![Pitch deck](https://img.shields.io/badge/Pitch_deck-111827?style=flat-square)](https://prooflane-mvp.vercel.app/pitch.html)
 
 [![ProofLane — 3-minute pitch and live demo](docs/youtube/thumbnail.png)](https://youtu.be/p-M4uQmwT1I)
-
-- **Video (3 min, pitch + live demo):** https://youtu.be/p-M4uQmwT1I
-- **Live product:** https://prooflane-mvp.vercel.app
-- **Console:** https://prooflane-mvp.vercel.app/console · **Guided demo:** https://prooflane-mvp.vercel.app/demo · **Pitch:** https://prooflane-mvp.vercel.app/pitch.html
-- **SDK on npm:** [`npm i prooflane-sdk`](https://www.npmjs.com/package/prooflane-sdk)
-- **Product docs:** [`docs/PRD.md`](docs/PRD.md) · [`docs/GTM.md`](docs/GTM.md) · [`docs/DESIGN.MD`](docs/DESIGN.MD)
 
 ---
 
 ## 1. The problem
 
-AI agents now release payments, change beneficiaries, and modify access. When one of those actions is disputed, the enterprise assembles traces, cloud audit logs, IAM records, and approval tickets — and two things go wrong:
+AI agents can now send payments, change bank details, and grant access. When something goes wrong, the company pulls together its own logs to explain what happened. Two things break:
 
-1. **The reviewer must trust the operator.** Every log is controlled by the company being questioned. An auditor, customer, insurer, or regulator cannot check the record wasn't changed, or that a policy was actually enforced.
-2. **The raw evidence is too sensitive to hand over.** Tool arguments contain account numbers, customer identifiers, and prompts (OpenTelemetry and Microsoft Foundry tracing docs warn about exactly this).
+1. **You have to trust the company.** The logs belong to the company being questioned. An auditor or customer can't tell if a log was edited, or if a rule was really followed.
+2. **The real data is too private to share.** The records contain account numbers, customer details, and prompts, so nobody wants to hand them over.
 
-EU AI Act Article 12 requires automatic event logging for high-risk AI, and only 22% of 500 senior legal/exec leaders are very confident they can produce governance evidence on demand (AAA/ICDR/IResearch). Observability tools answer *"here is our record."* ProofLane answers *"here is evidence you can check yourself."*
+The EU AI Act (Article 12) asks for automatic record-keeping for high-risk AI, and only 22% of 500 senior legal and business leaders say they are very confident they can produce this kind of proof on demand. Logs say *"trust our record."* ProofLane says *"here is proof you can check yourself."*
 
 ## 2. What we built
 
-A lean but complete product for one consequential action class — **payment release** (the PRD's beachhead) — with three parts:
+A working product for one high-risk action: **releasing a payment**. It has three parts.
 
 | Part | What it does |
 |---|---|
-| **Gateway SDK** — [`prooflane-sdk` on npm](https://www.npmjs.com/package/prooflane-sdk) · [`src/sdk/prooflane.ts`](src/sdk/prooflane.ts) | `proof.guard("payment.release", tool, approval)` wraps any async agent tool. Each call is authorized against policy and sealed into a CooL receipt **before** the tool runs; the result is sealed under the same execution id. Blocked calls throw `ProofLaneBlockedError` carrying a signed refusal. No receipt → no action. |
-| **Workspace ledger (SaaS)** — [`/console`](https://prooflane-mvp.vercel.app/console) | Create a workspace and API key, run the agent against live policy, browse the receipt ledger (every row re-verified in the browser against pinned keys), and watch coverage: attempted / authorized / blocked / completed / tool failures / seal failures / log size, plus CooL's measured capture latency. |
-| **Auditor evidence rooms** — `/share/<token>` | One link gives an auditor every receipt plus a CooL audit pack. They verify locally, see commitments instead of data, and request a single field. The operator approves by supplying the plaintext; CooL checks it against the sealed commitment before release. **Requests, approvals, and denials are themselves receipted** into the same log. |
+| **SDK** · [`prooflane-sdk`](https://www.npmjs.com/package/prooflane-sdk) | Wrap your agent's payment tool in one line. Before the tool runs, ProofLane checks the payment against your rules and creates a signed CooL receipt. If the payment isn't allowed, the tool never runs, and the refusal gets a signed receipt too. |
+| **Console** · [`/console`](https://prooflane-mvp.vercel.app/console) | Create a workspace, run a test agent, see every receipt (each one re-checked in your browser), and track how many payments were allowed, blocked, or failed. |
+| **Evidence rooms** · `/share/<link>` | Send an auditor one link. They check every receipt themselves, see hidden values instead of private data, and can ask for one specific field. You approve, and CooL confirms the value matches what was sealed. Every request and answer is receipted as well. |
 
-The Console is organised as the customer lifecycle — **1 Connect** (engineering wraps a tool) → **2 Enforce** (risk & compliance: policy gates every call) → **3 Record** (operations: receipt ledger) → **4 Prove** (auditors: evidence rooms). Every tab opens with a banner naming the step, the team that owns it, a *uses CooL SDK* link where CooL does the work, and a **Next** button. The **Overview** shows a "your next step" card, a live 4-stage pipeline driven by the workspace's real receipts, colored KPI tiles, receipts-over-time and policy-decision charts, evidence-plane status, and recent activity. **Under the hood** is the CooL SDK section showing, live for the workspace, each of the eight CooL APIs ProofLane calls, where it runs, and a link to the source file. The **pitch deck** (`/pitch.html`) is a full-screen 16:9 presentation with speaker notes (`N`), a slide grid (`G`), fullscreen (`F`), an animated architecture diagram, receipt anatomy, and the CooL call map.
+The Console follows the order a real customer works in: **1 Connect** (wrap a tool) → **2 Enforce** (rules check every payment) → **3 Record** (receipt list) → **4 Prove** (share with auditors). The **Under the hood** tab shows, live, which CooL SDK functions ran for your workspace and where they are in the code.
 
-Also included: the 3-minute **guided story** (`/demo`: six presentable chapters — the problem → the agent acts → anyone can verify → auditor asks one question → someone tampers ($48,200 → $4,820) → hand over the evidence — with a progress rail, a "story so far" timeline, and ← → keyboard navigation), the standalone **independent verifier** (`/verifier`: receipts, audit packs, disclosures, pinned trust), and the **pitch** (`/pitch.html`).
+Also included:
+- **[Guided demo](https://prooflane-mvp.vercel.app/demo)**: a six-step story. An agent pays $48,200, anyone verifies it, an auditor asks one question, someone changes the amount to $4,820 and the check fails, then the evidence is handed over.
+- **[Verifier](https://prooflane-mvp.vercel.app/verifier)**: paste any receipt or audit pack and check it, without trusting our server.
+- **[Pitch deck](https://prooflane-mvp.vercel.app/pitch.html)**: full-screen slides (`N` notes, `G` grid, `F` fullscreen).
 
-### Payment policy (evaluated by the CooL policy engine)
+### Payment rules (checked by CooL's policy engine)
 
-| Rule | When | Decision |
+| Rule | When | Result |
 |---|---|---|
-| PAY-001 | amount < $25,000 and ≥ 1 approver | approved |
-| PAY-002 | amount ≥ $25,000 and ≥ 2 distinct approvers | approved |
-| PAY-003 | amount ≥ $25,000 and exactly 1 approver | escalate (blocked) |
-| PAY-004 | no human approver | rejected (blocked) |
+| PAY-001 | under $25,000 and at least 1 approver | allowed |
+| PAY-002 | $25,000 or more and at least 2 different approvers | allowed |
+| PAY-003 | $25,000 or more and only 1 approver | blocked, needs a second approver |
+| PAY-004 | no human approver | blocked |
 
-Strictest rule wins; anything unmatched escalates. The decision, matched rules, and policy hash are sealed into the authorization receipt.
+The strictest matching rule wins. Anything that matches no rule is blocked. The result and the exact rule set used are sealed into the receipt.
 
-## 3. How CooL is used
+## 3. How we use the CooL SDK
 
-CooL is the evidence layer — every trust claim ProofLane makes is computed by the SDK.
+CooL is not an add-on here. Every proof ProofLane gives comes from the CooL SDK ([`cool-nwc`](https://www.npmjs.com/package/cool-nwc)).
 
-| Product need | CooL API | Where |
+| What ProofLane needs | CooL SDK function | Where in the code |
 |---|---|---|
-| Seal authorizations, refusals, outcomes, and disclosure decisions | `CoolTee.connect({ dstack, log, logId })` · `tee.record({ type, executionId, metadata, payloads, software })` | [`src/lib/ledger.ts`](src/lib/ledger.ts) |
-| Commit sensitive tool arguments, results, and approval refs without storing plaintext | `payloads: { input, output, state }` → salted commitments | `authorize()` / `complete()` in [`ledger.ts`](src/lib/ledger.ts) |
-| Enforce and evidence governance | `evaluate(PolicySet, PolicyInput)` → decision + `policy_hash` sealed in metadata | [`src/lib/policy.ts`](src/lib/policy.ts) |
-| **One transparency log per workspace across serverless instances** | `EvidenceLog` seam + `MemoryLog(logId, sealedKeyset(dstack).log)`: leaves persisted to Redis and replayed under a lock before each seal, so inclusion proofs are against one growing RFC 6962 tree | `openPlane()` / `seal()` in [`ledger.ts`](src/lib/ledger.ts) |
-| Stable, non-derivable keys bound to the deployed build | `SimulatedDstackClient({ appName, imageDigest: <build>, rootSeed: <secret> })` — measurement-sealed keys | [`src/lib/gateway.ts`](src/lib/gateway.ts) |
-| Publish trust material | `cool.keyDirectory` · `cool.environment.measurement` → `GET /api/keys` | [`src/app/api/keys/route.ts`](src/app/api/keys/route.ts) |
-| Offline verification in the browser, 7 domains | `verifyEvidence(receipt, { expectedMeasurement })` | [`src/lib/trust.ts`](src/lib/trust.ts) |
-| Defeat key substitution | `withTrustedKeys(receipt, pinnedKeys)` + key-id pin check | [`src/lib/trust.ts`](src/lib/trust.ts) |
-| Audit packs with obligation coverage | `buildAuditPack` · `verifyAuditPack` · `coverage` | `publicShare()` in [`ledger.ts`](src/lib/ledger.ts), evidence room, verifier |
-| Field-level disclosure that can't lie | `disclose(receipt, field, value)` (refuses mismatches) · `verifyDisclosure` | `decideRequest()` in [`ledger.ts`](src/lib/ledger.ts), evidence room |
-| Measured capture cost | `tee.stats()` (p50/p99 enqueue, dropped, high-water) | Console → Coverage |
-| Verify without our website | `npx -p cool-nwc cool verify receipt.json` | `/demo` step 6 |
+| Create a signed receipt for every approval, refusal, result, and auditor request | `CoolTee.connect` · `tee.record` | [`src/lib/ledger.ts`](src/lib/ledger.ts) |
+| Hide private data (payment details, approval IDs) while still proving it | `payloads` → hidden values (commitments) | `authorize()` / `complete()` in [`ledger.ts`](src/lib/ledger.ts) |
+| Check payments against rules and prove which rules were used | `evaluate` | [`src/lib/policy.ts`](src/lib/policy.ts) |
+| Keep one tamper-evident log per workspace, so a deleted receipt is noticed | `EvidenceLog` · `MemoryLog` (saved to Redis) | `openPlane()` / `seal()` in [`ledger.ts`](src/lib/ledger.ts) |
+| Signing keys tied to the exact deployed code | `SimulatedDstackClient` | [`src/lib/gateway.ts`](src/lib/gateway.ts) |
+| Publish our public keys so anyone can check signatures | `keyDirectory` · `environment.measurement` | [`src/app/api/keys/route.ts`](src/app/api/keys/route.ts) |
+| Check a receipt in the browser, without our server | `verifyEvidence` | [`src/lib/trust.ts`](src/lib/trust.ts) |
+| Stop someone from swapping in fake keys | `withTrustedKeys` | [`src/lib/trust.ts`](src/lib/trust.ts) |
+| Bundle receipts for an auditor and confirm nothing is missing | `buildAuditPack` · `verifyAuditPack` · `coverage` | `publicShare()` in [`ledger.ts`](src/lib/ledger.ts) |
+| Reveal one field, and refuse if the value doesn't match | `disclose` · `verifyDisclosure` | `decideRequest()` in [`ledger.ts`](src/lib/ledger.ts) |
+| Measure how fast receipts are created | `tee.stats` | Console → Under the hood |
+| Check a receipt from the command line | `npx -p cool-nwc cool verify receipt.json` | Guided demo, step 6 |
 
-### Why CooL matters here
+### Why CooL matters for this problem
 
-- **Integrity is checkable by a stranger.** Canonical CBOR binding + hybrid ML-DSA-65/Ed25519 signatures: change one digit and verification fails.
-- **Policy enforcement becomes evidence.** A blocked payment isn't a missing log line — it's a signed receipt naming the rule that stopped it.
-- **Completeness is checkable.** One RFC 6962 tree per workspace means receipts share a root; dropping one breaks the tree.
-- **Privacy is structural.** The ledger and receipts carry commitments; the operator keeps plaintext and opens one field at a time.
-- **Honesty is enforced by the verifier.** Simulated attestation is never reported as hardware.
+- **Anyone can check it.** Receipts are signed. Change one digit and the check fails.
+- **A block is proof, not a missing line.** A stopped payment has its own signed receipt naming the rule that stopped it.
+- **Nothing can be quietly deleted.** All receipts in a workspace share one log, so removing one breaks it.
+- **Private data stays private.** Receipts hold hidden values. You reveal one field only when an auditor asks.
+- **It's honest about itself.** This build uses CooL's simulated secure hardware, and the verifier always labels it "simulated".
 
 ## 4. Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Customer["Customer environment"]
-    AG[AI agent] -->|tool call| SDK["proof.guard()<br/>ProofLane SDK"]
-    SDK -->|runs only if authorized| TOOL[Bank / payment tool]
-    SDK -.->|plaintext vault stays here| VAULT[(Customer storage)]
+  subgraph Customer["Your company"]
+    AG[AI agent] -->|wants to pay| SDK["prooflane-sdk<br/>proof.guard()"]
+    SDK -->|runs only if allowed| TOOL[Payment tool]
+    SDK -.->|private data stays here| VAULT[(Your storage)]
   end
-  subgraph ProofLane["ProofLane (Vercel)"]
-    API["/api/v1/actions/*<br/>API-key auth"] --> POL[CooL policy engine]
-    API --> PLANE["CooL evidence plane<br/>CoolTee + SimulatedDstackClient<br/>commit · bind · sign"]
-    PLANE <-->|leaves replayed under lock| KV[(Upstash Redis<br/>workspaces · ledger · RFC 6962 leaves · shares)]
-    KEYS["/api/keys<br/>trust anchor"]
+  subgraph ProofLane["ProofLane on Vercel"]
+    API[API] --> POL[CooL rules check]
+    API --> PLANE[CooL SDK<br/>hide · sign · log]
+    PLANE <--> KV[(Redis<br/>workspaces · receipts · log)]
+    KEYS[Public keys]
   end
-  SDK -->|authorize / complete| API
+  SDK -->|check / record result| API
   subgraph Auditor["Auditor's browser"]
-    ROOM["/share/token<br/>verifyEvidence · verifyAuditPack · verifyDisclosure"]
+    ROOM[Evidence room<br/>CooL checks every receipt]
   end
-  KV -->|receipts + audit pack| ROOM
-  KEYS -.->|pin| ROOM
-  ROOM -->|request one field| API
-  VAULT -.->|operator approves with plaintext| API
+  KV -->|receipts| ROOM
+  KEYS -.-> ROOM
+  ROOM -->|asks for one field| API
+  VAULT -.->|you approve with the real value| API
 ```
 
-### Workflow
+### How a payment flows
 
-1. The agent calls `releasePayment(args)`; the SDK posts the JSON-encoded arguments and approval ref to `POST /api/v1/actions/authorize`.
-2. ProofLane evaluates the CooL policy, then seals `payment.release.authorized` or `payment.release.blocked` into the workspace log (input + approval ref committed, decision + policy hash in metadata).
-3. Blocked → the SDK throws with the signed refusal; the tool never runs. Authorized → the tool runs.
-4. The SDK posts the result to `/complete`; ProofLane seals `payment.release.completed` (or `.failed`) under the same execution id.
-5. The operator creates an evidence-room link. The auditor verifies all receipts and the audit pack locally, and requests e.g. the `state` (approval ref) of one receipt → sealed `evidence.disclosure.requested`.
-6. The operator approves with the plaintext its SDK kept; CooL's `disclose()` refuses anything that doesn't match; the decision is sealed; the auditor re-checks the value against the original commitment.
+1. The agent calls `releasePayment(...)`. The SDK sends the payment details to ProofLane.
+2. ProofLane checks the rules with CooL and creates a signed receipt: **allowed** or **blocked**.
+3. If blocked, the SDK stops with the signed refusal and the payment never happens. If allowed, the payment tool runs.
+4. The SDK sends the result, and ProofLane creates a second receipt linked to the first.
+5. You share an evidence room link. The auditor checks every receipt in their browser and can ask for one field, such as the approval ID.
+6. You approve with the real value. CooL refuses it if it doesn't match what was sealed, and the auditor's page re-checks it.
 
 ### API
 
-| Method & path | Auth | Purpose |
+| Method & path | Needs | What it does |
 |---|---|---|
-| `POST /api/v1/workspaces` | — | Create workspace, returns API key once |
-| `POST /api/v1/actions/authorize` | API key | Policy check + seal authorization/refusal |
-| `POST /api/v1/actions/:executionId/complete` | API key | Seal outcome |
-| `GET /api/v1/receipts` | API key | Latest 50 ledger entries with receipts |
-| `GET /api/v1/stats` | API key | Coverage counters, log size, CooL capture stats |
-| `POST /api/v1/shares` | API key | Create evidence-room link (7-day expiry) |
-| `GET /api/v1/disclosure-requests` · `POST /api/v1/disclosure-requests/:id` | API key | List / approve / deny |
-| `GET /api/share/:token` · `POST /api/share/:token/requests` | share token | Evidence room data / request a field |
-| `GET /api/keys` | — | Published keys + measurement |
+| `POST /api/v1/workspaces` | — | Create a workspace (shows the API key once) |
+| `POST /api/v1/actions/authorize` | API key | Check rules and create the allowed/blocked receipt |
+| `POST /api/v1/actions/:executionId/complete` | API key | Create the result receipt |
+| `GET /api/v1/receipts` | API key | Latest 50 receipts |
+| `GET /api/v1/stats` | API key | Counts, log size, CooL timing |
+| `POST /api/v1/shares` | API key | Create an evidence room link (expires in 7 days) |
+| `GET /api/v1/disclosure-requests` · `POST /api/v1/disclosure-requests/:id` | API key | See, approve, or deny auditor requests |
+| `GET /api/share/:token` · `POST /api/share/:token/requests` | share link | Open an evidence room / ask for a field |
+| `GET /api/keys` | — | Public keys for checking receipts |
 
-## 5. Run it locally
+## 5. Run it
 
-Requirements: Node.js ≥ 20.
+**Try it online:** open the [guided demo](https://prooflane-mvp.vercel.app/demo) and press → through the six steps.
+
+**Run it locally** (Node.js 20 or newer):
 
 ```bash
 git clone https://github.com/charansaiponnada/prooflane-mvp.git
 cd prooflane-mvp
 npm install
-npm run dev          # http://localhost:3000 → Console → Create workspace → Run agent
+npm run dev          # open http://localhost:3000 → Console → Create workspace → Run agent
 ```
 
-Without Redis credentials the ledger runs in process memory (fine for one local process).
+Without Redis, data is kept in memory, which is fine on your own machine.
 
-| Variable | Purpose |
+| Setting | Why |
 |---|---|
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` / `_TOKEN`) | Upstash Redis for durable, multi-instance ledger and log. Required on serverless. |
-| `COOL_SIM_ROOT_SEED` | Secret root seed for the simulated evidence plane. **Set in any deployment** — the fallback seed is public. |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL` / `_TOKEN`) | Upstash Redis, so data survives restarts. Needed on Vercel. |
+| `COOL_SIM_ROOT_SEED` | Secret used to create signing keys. **Always set it when deploying**, since the default is public. |
 
 ```bash
-npm test             # CooL round-trips: tamper, disclosure, audit pack, key substitution, policy gating, shared log, receipted disclosures
+npm test             # CooL checks: tampering, field reveal, audit packs, fake keys, rules, shared log
 npm run check && npm run lint && npm run build
 ```
 
-### Using the SDK in your agent
+### Use the SDK in your own agent
 
 ```bash
 npm i prooflane-sdk
@@ -158,10 +164,9 @@ npm i prooflane-sdk
 import { ProofLane, ProofLaneBlockedError } from "prooflane-sdk";
 
 const proof = new ProofLane({
-  apiKey: process.env.PROOFLANE_API_KEY!,
+  apiKey: process.env.PROOFLANE_API_KEY!, // from the Console
   agent: "payments-agent",
-  baseUrl: "https://prooflane-mvp.vercel.app",
-  onReceipt: (receipt, vault) => db.save(receipt.record.record_id, vault), // keep plaintext for disclosures
+  onReceipt: (receipt, vault) => db.save(receipt.record.record_id, vault), // keep private values to answer auditors later
 });
 
 const releasePayment = proof.guard("payment.release", bank.releasePayment, (args) => ({
@@ -169,54 +174,53 @@ const releasePayment = proof.guard("payment.release", bank.releasePayment, (args
   approvers: args.approvers,
 }));
 
-// give releasePayment to your OpenAI / Anthropic / LangChain / MCP agent as its tool
+// Give releasePayment to your agent as its tool (OpenAI, Anthropic, LangChain, MCP...).
 ```
 
-### 3-minute judge walkthrough
+### 3-minute walkthrough
 
-1. **Guided story** (`/demo`) → press → through the six chapters: release $48,200, verify it, disclose one field, watch the $4,820 tamper fail, export the audit pack.
-2. **Console** → create a workspace → follow the **Your next step** card on Overview.
-3. **2 Enforce** → run "$48,200 · one approver" → blocked by PAY-003, and the refusal is a receipt. Run "$48,200 · dual control" → authorized + completed.
-4. **3 Record** → open a receipt: hidden fields, valid verdict, pinned key.
-5. **4 Prove** → create link → open it in a private window → everything re-verifies → **Request field** `state` → back in Console, **Approve** → the auditor's page shows the approval ref, matched against the commitment.
-6. **Under the hood** → every CooL API behind those steps, with live numbers.
+1. **[Guided demo](https://prooflane-mvp.vercel.app/demo)**: pay $48,200, verify it, reveal one field, watch the $4,820 change fail, export the evidence.
+2. **[Console](https://prooflane-mvp.vercel.app/console)**: create a workspace and follow the **Your next step** card.
+3. **2 Enforce**: run "$48,200 · one approver". It's blocked by PAY-003, and the block has a receipt. Then run "$48,200 · dual control". It's allowed and completed.
+4. **3 Record**: open a receipt to see hidden fields, a valid check, and the pinned key.
+5. **4 Prove**: create a link and open it in a private window. Everything re-checks. Click **Request field** `state`, go back to the Console, and click **Approve**. The auditor's page shows the approval ID, matched against the sealed value.
+6. **Under the hood**: see every CooL SDK function behind those steps, with live numbers.
 
 ## 6. Technical decisions
 
-- **Two receipts per action, one execution id.** Authorization is sealed before the side effect (gating); the outcome after. A reviewer sees intent, decision, and result as linked evidence.
-- **Refusals are receipts.** Blocking is only trustworthy if the block is as provable as the approval.
-- **Durable RFC 6962 log through CooL's `EvidenceLog` seam.** The log interface is synchronous, so each seal takes a Redis lock, replays missing leaves into a `MemoryLog` signed by the plane's sealed log key, seals, and persists new leaves.
-- **Plaintext stays with the operator.** The evidence plane sees it transiently (as it would inside a TEE) and discards it; the ledger index stores no payload data; the SDK hands plaintext back via `onReceipt` for later disclosure.
-- **Verification happens in the reader's browser**, never trusting server-computed verdicts; trust is pinned explicitly and labelled when it isn't.
-- **Framework-free SDK**: a tool is just an async function, so it drops into any agent stack.
-- **shadcn/ui + Phosphor, monochrome**; color only for verified / invalid / simulated ([`docs/DESIGN.MD`](docs/DESIGN.MD)).
+- **Two receipts per payment.** One before the payment runs (the decision), one after (the result), linked by the same ID.
+- **Blocks get receipts too.** A block is only trustworthy if you can prove it as easily as an approval.
+- **One log per workspace, shared across servers.** Vercel runs many copies of the app, so the CooL log is saved in Redis and reloaded under a lock before each new receipt.
+- **Private data stays with you.** ProofLane only stores hidden values. The SDK gives the real values back to you through `onReceipt`, so you can answer auditors later.
+- **Checks run in the reader's browser.** We never ask anyone to trust a "valid" label from our server.
+- **The SDK works with any agent.** A tool is just an async function.
+- **Simple design.** Black and white, with color only for valid, invalid, and simulated ([`docs/DESIGN.MD`](docs/DESIGN.MD)).
 
 ## 7. Limitations
 
-ProofLane proves **the integrity of captured execution statements**. It does not prove a decision was correct, fair, safe, or legal; that every action went through the gateway; or that the application didn't lie before capture.
+ProofLane proves that **a recorded action wasn't changed afterward**. It does not prove the decision was right or legal, that every action went through ProofLane, or that the app didn't lie before recording.
 
-Current build:
+In this build:
 
-- **Simulated TEE.** Attestation chains to the CooL simulator root and is labelled `simulated`; plaintext is visible to the ProofLane server process during sealing.
-- **Workspace auth is an API key** (no users/SSO/roles); keys are stored hashed; the console keeps the key in browser storage.
-- **Trust anchor served by the same deployment.** Production keys should be distributed out of band and rotated.
-- **No external witnesses or public anchoring** yet; lock release is non-atomic; seals per workspace are serialized.
-- **One action class** (payment release) with a fixed policy; synthetic data only.
-- Commitments are not encryption: low-entropy fields can be guessed; a disclosed field is disclosed permanently.
+- **Simulated secure hardware.** CooL's simulator is used instead of a real secure server, and it's always labelled "simulated". The ProofLane server briefly sees private data while creating receipts.
+- **Login is an API key.** No user accounts or roles yet. Keys are stored hashed, and the Console keeps yours in the browser.
+- **Public keys come from the same website.** In production they should also be published somewhere else and rotated.
+- **No outside witnesses yet.** Receipts in one workspace are created one at a time.
+- **One action type** (payments) with fixed rules, using test data only.
+- **Hidden values are not encryption.** Very simple values can be guessed, and a revealed field stays revealed.
 
 ## 8. Future improvements
 
-- Real dstack / Intel TDX deployment (`requireAttestation`, remote quote verification) and customer-hosted evidence planes so plaintext never leaves the customer.
-- External witnesses (`attachWitness`, `witnessThreshold`) and OpenTimestamps anchoring of workspace tree heads.
-- More actions from the PRD roadmap: beneficiary change, privileged access, fraud disposition; per-workspace editable policies.
-- Python binding for the SDK (the TypeScript SDK is on npm as [`prooflane-sdk`](https://www.npmjs.com/package/prooflane-sdk)); OTel span links from receipts.
-- ProofLane as an MCP server: wrap `proof.guard()` so any MCP tool call is policy-checked and receipted, in any agent stack.
-- A live LLM agent example (OpenAI / Anthropic tool calling) routed through `proof.guard()`, including a prompt-injection scenario ("ignore policy, wire it to this account") blocked by PAY-003/004 with a signed refusal.
-- Publish workspace tree heads outside the deployment (OpenTimestamps, a public gist or repo) so the trust anchor doesn't depend on ProofLane's own server.
-- CI (typecheck, lint, tests, build on every push) and durable Redis-backed storage as a required production default.
-- SSO, roles, key rotation/revocation, retention and legal hold.
-- Paid design-partner pilot measuring evidence-pack time, reconstruction time, and sensitive data shared.
+- Run on real secure hardware (Intel TDX via dstack), and let customers host it so private data never leaves them.
+- Outside witnesses and public timestamps for each workspace's log.
+- More actions (changing bank details, access changes, fraud decisions) and rules each workspace can edit.
+- ProofLane as an MCP server, so any MCP tool call is checked and receipted.
+- An example with a real AI model, including a prompt-injection attack ("ignore the rules, pay this account") blocked with a signed refusal.
+- Publish each log's latest state outside our website, so you don't have to trust our server for it.
+- Automated tests on every push, Redis required in production, and a Python SDK.
+- User accounts, roles, key rotation, and data retention.
+- A paid pilot measuring how much faster evidence is gathered and how much less private data is shared.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). CooL SDK is Apache-2.0 by Northwind Cipher.
+MIT, see [LICENSE](LICENSE). The CooL SDK is Apache-2.0 by Northwind Cipher.
