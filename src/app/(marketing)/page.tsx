@@ -128,7 +128,7 @@ export default function ProductPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section id="product" className="grid scroll-mt-20 gap-4 md:grid-cols-3">
         {pillars.map(({ icon: Icon, title, body }) => (
           <Card key={title}>
             <CardHeader>
@@ -140,7 +140,7 @@ export default function ProductPage() {
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section id="how" className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold">How it works</h2>
           <ol className="flex flex-col gap-3">
@@ -168,7 +168,7 @@ export default function ProductPage() {
         </Card>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section id="security" className="flex scroll-mt-20 flex-col gap-4">
         <div className="flex items-center gap-2">
           <ShieldCheck size={24} />
           <h2 className="text-lg font-semibold">What a reviewer can catch — without your backend</h2>
@@ -195,7 +195,7 @@ export default function ProductPage() {
         </Card>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section id="pilot" className="grid scroll-mt-20 gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <Gavel size={24} />
