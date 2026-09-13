@@ -11,6 +11,7 @@ ProofLane gates consequential agent actions on policy, seals every decision into
 - **Video (3 min, pitch + live demo):** https://youtu.be/p-M4uQmwT1I
 - **Live product:** https://prooflane-mvp.vercel.app
 - **Console:** https://prooflane-mvp.vercel.app/console · **Guided demo:** https://prooflane-mvp.vercel.app/demo · **Pitch:** https://prooflane-mvp.vercel.app/pitch.html
+- **SDK on npm:** [`npm i prooflane-sdk`](https://www.npmjs.com/package/prooflane-sdk)
 - **Product docs:** [`docs/PRD.md`](docs/PRD.md) · [`docs/GTM.md`](docs/GTM.md) · [`docs/DESIGN.MD`](docs/DESIGN.MD)
 
 ---
@@ -30,7 +31,7 @@ A lean but complete product for one consequential action class — **payment rel
 
 | Part | What it does |
 |---|---|
-| **Gateway SDK** — [`src/sdk/prooflane.ts`](src/sdk/prooflane.ts) | `proof.guard("payment.release", tool, approval)` wraps any async agent tool. Each call is authorized against policy and sealed into a CooL receipt **before** the tool runs; the result is sealed under the same execution id. Blocked calls throw `ProofLaneBlockedError` carrying a signed refusal. No receipt → no action. |
+| **Gateway SDK** — [`prooflane-sdk` on npm](https://www.npmjs.com/package/prooflane-sdk) · [`src/sdk/prooflane.ts`](src/sdk/prooflane.ts) | `proof.guard("payment.release", tool, approval)` wraps any async agent tool. Each call is authorized against policy and sealed into a CooL receipt **before** the tool runs; the result is sealed under the same execution id. Blocked calls throw `ProofLaneBlockedError` carrying a signed refusal. No receipt → no action. |
 | **Workspace ledger (SaaS)** — [`/console`](https://prooflane-mvp.vercel.app/console) | Create a workspace and API key, run the agent against live policy, browse the receipt ledger (every row re-verified in the browser against pinned keys), and watch coverage: attempted / authorized / blocked / completed / tool failures / seal failures / log size, plus CooL's measured capture latency. |
 | **Auditor evidence rooms** — `/share/<token>` | One link gives an auditor every receipt plus a CooL audit pack. They verify locally, see commitments instead of data, and request a single field. The operator approves by supplying the plaintext; CooL checks it against the sealed commitment before release. **Requests, approvals, and denials are themselves receipted** into the same log. |
 
@@ -149,8 +150,12 @@ npm run check && npm run lint && npm run build
 
 ### Using the SDK in your agent
 
+```bash
+npm i prooflane-sdk
+```
+
 ```ts
-import { ProofLane, ProofLaneBlockedError } from "./prooflane"; // copy src/sdk/prooflane.ts
+import { ProofLane, ProofLaneBlockedError } from "prooflane-sdk";
 
 const proof = new ProofLane({
   apiKey: process.env.PROOFLANE_API_KEY!,
@@ -204,7 +209,7 @@ Current build:
 - Real dstack / Intel TDX deployment (`requireAttestation`, remote quote verification) and customer-hosted evidence planes so plaintext never leaves the customer.
 - External witnesses (`attachWitness`, `witnessThreshold`) and OpenTimestamps anchoring of workspace tree heads.
 - More actions from the PRD roadmap: beneficiary change, privileged access, fraud disposition; per-workspace editable policies.
-- Published npm package (`npm i prooflane`) and Python binding for the SDK; OTel span links from receipts.
+- Python binding for the SDK (the TypeScript SDK is on npm as [`prooflane-sdk`](https://www.npmjs.com/package/prooflane-sdk)); OTel span links from receipts.
 - ProofLane as an MCP server: wrap `proof.guard()` so any MCP tool call is policy-checked and receipted, in any agent stack.
 - A live LLM agent example (OpenAI / Anthropic tool calling) routed through `proof.guard()`, including a prompt-injection scenario ("ignore policy, wire it to this account") blocked by PAY-003/004 with a signed refusal.
 - Publish workspace tree heads outside the deployment (OpenTimestamps, a public gist or repo) so the trust anchor doesn't depend on ProofLane's own server.

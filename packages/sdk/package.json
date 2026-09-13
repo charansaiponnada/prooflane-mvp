@@ -1,0 +1,18 @@
+{
+  "name": "prooflane-sdk",
+  "version": "0.1.0",
+  "description": "Evidence gateway for AI agents: policy-check and seal every consequential tool call into a verifiable CooL receipt.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist"],
+  "engines": { "node": ">=20" },
+  "repository": { "type": "git", "url": "git+https://github.com/charansaiponnada/prooflane-mvp.git", "directory": "packages/sdk" },
+  "homepage": "https://prooflane-mvp.vercel.app",
+  "keywords": ["ai-agents", "audit", "evidence", "policy", "receipts", "cool-nwc"],
+  "scripts": { "build": "tsc", "prepublishOnly": "npm run build" },
+  "dependencies": { "cool-nwc": "^3.0.0" },
+  "devDependencies": { "typescript": "^5" }
+}
