@@ -139,6 +139,61 @@
   --sidebar-ring: hsl(0 0% 98%);
 }
 
+/* Landing hero: abstract, monochrome motion — a drifting ledger grid and orbiting log rings. */
+@keyframes pl-drift {
+  to {
+    background-position: 48px 48px;
+  }
+}
+@keyframes pl-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes pl-pulse {
+  50% {
+    scale: 2.5;
+    opacity: 0.15;
+  }
+}
+.pl-motion-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--foreground) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 9%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 70% 50%, black 20%, transparent 75%);
+  animation: pl-drift 6s linear infinite;
+}
+.pl-orbit {
+  border: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
+  border-radius: 9999px;
+  animation: pl-spin 48s linear infinite;
+}
+.pl-orbit::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--foreground);
+}
+.pl-orbit-reverse {
+  animation-duration: 32s;
+  animation-direction: reverse;
+}
+.pl-pulse {
+  animation: pl-pulse 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-motion-grid,
+  .pl-orbit,
+  .pl-pulse {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

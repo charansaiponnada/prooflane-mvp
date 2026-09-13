@@ -1,27 +1,26 @@
 import { CooL } from "cool-nwc";
 import { SimulatedDstackClient } from "cool-nwc/phala";
-import type { TrustAnchor } from "@/lib/trust";
+import type { TrustAnchor } from "./trust";
 
-const APP = "northstar-payments";
+const APP = "prooflane";
 
 /**
- * The evidence plane for the gateway.
+ * The simulated dstack guest agent every evidence plane in this deployment uses.
  *
- * The simulator derives the signing key from (root seed, app, image digest).
- * - A secret root seed keeps the key underivable by anyone else and identical
- *   across serverless instances, so verifiers can pin it.
- * - The image digest is the deployed commit, so shipping different code yields a
- *   different measurement and a different key — receipts stay tied to the build.
+ * The simulator derives signing keys from (root seed, app, image digest).
+ * - A secret root seed keeps keys underivable by anyone else and identical
+ *   across serverless instances, so verifiers can pin them.
+ * - The image digest is the deployed build, so shipping different code yields a
+ *   different measurement and different keys — receipts stay tied to the build.
  */
-// ponytail: one process-wide plane + in-memory transparency log; each serverless instance has its own log. Use a durable EvidenceLog when receipts need a shared tree.
-export const cool = new CooL({
-  applicationId: APP,
-  dstackClient: new SimulatedDstackClient({
-    appName: APP,
-    imageDigest: `sha256:${process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERCEL_DEPLOYMENT_ID ?? "local-development"}`,
-    rootSeed: process.env.COOL_SIM_ROOT_SEED ?? "prooflane-insecure-local-seed",
-  }),
+export const dstack = new SimulatedDstackClient({
+  appName: APP,
+  imageDigest: `sha256:${process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERCEL_DEPLOYMENT_ID ?? "local-development"}`,
+  rootSeed: process.env.COOL_SIM_ROOT_SEED ?? "prooflane-insecure-local-seed",
 });
+
+// Used by the guided demo gateway and to publish the trust anchor.
+export const cool = new CooL({ applicationId: "northstar-payments", dstackClient: dstack });
 
 export async function trustAnchor(): Promise<TrustAnchor> {
   await cool.ready();

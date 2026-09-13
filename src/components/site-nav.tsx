@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
-  { href: "/", label: "Control Room" },
+  { href: "/", label: "Product" },
+  { href: "/console", label: "Console" },
+  { href: "/demo", label: "Guided demo" },
   { href: "/verifier", label: "Verifier" },
   { href: "/pitch.html", label: "Pitch" },
 ];

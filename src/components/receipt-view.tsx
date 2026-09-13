@@ -81,11 +81,11 @@ export function ReceiptView({ receipt }: { receipt: ReceiptV2 }) {
   const json = JSON.stringify(receipt, null, 2);
 
   const hidden = [
-    { label: "Payment instruction", field: "input", commitment: c.input },
-    { label: "Tool result", field: "output", commitment: c.output },
-    { label: "Approval context", field: "state", commitment: c.state },
-    { label: "Action metadata", field: "metadata", commitment: event.metadata_hash },
-  ];
+    { label: "Input · tool arguments", field: "input", commitment: c.input },
+    { label: "Output · tool result", field: "output", commitment: c.output },
+    { label: "State · approval ref", field: "state", commitment: c.state },
+    { label: "Metadata · policy", field: "metadata", commitment: event.metadata_hash },
+  ].filter((item) => item.commitment);
 
   return (
     <Card>

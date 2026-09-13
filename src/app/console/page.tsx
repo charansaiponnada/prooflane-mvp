@@ -1,0 +1,845 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  ArrowsClockwise,
+  Code,
+  Copy,
+  LinkSimple,
+  Play,
+  ShieldCheck,
+  ShieldWarning,
+  SignOut,
+} from "@phosphor-icons/react";
+import type { ReceiptV2 } from "cool-nwc";
+import type { CaptureStats } from "cool-nwc/phala";
+import { toast } from "sonner";
+import { ReceiptView } from "@/components/receipt-view";
+import { VerdictCard } from "@/components/verdict-card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import type { DisclosureRequest, Entry, Workspace } from "@/lib/ledger";
+import { HIGH_VALUE_THRESHOLD, PAYMENT_POLICY } from "@/lib/policy";
+import { verifyReceipt, type PinCheck, type TrustAnchor } from "@/lib/trust";
+import { ProofLane, ProofLaneBlockedError, type Vault } from "@/sdk/prooflane";
+
+const SESSION_KEY = "prooflane:session";
+type Session = { workspaceId: string; name: string; apiKey: string };
+type Stats = {
+  workspace: Workspace;
+  counters: Record<string, number>;
+  log_size: number;
+  durable: boolean;
+  capture: CaptureStats | null;
+};
+type Row = Entry & { receipt: ReceiptV2; verdict: Awaited<ReturnType<typeof verifyReceipt>>["verdict"]; pin: PinCheck | null };
+type PaymentArgs = {
+  amount: number;
+  currency: string;
+  beneficiary: string;
+  account: string;
+  approval_id: string;
+  approvers: string[];
+};
+
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const vaultKey = (recordId: string) => `prooflane:vault:${recordId}`;
+
+function subscribe(cb: () => void) {
+  window.addEventListener("storage", cb);
+  return () => window.removeEventListener("storage", cb);
+}
+function readSession() {
+  try {
+    return localStorage.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+function saveSession(session: Session | null) {
+  try {
+    if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    toast.error("Browser storage is unavailable; the session will not persist");
+  }
+  window.dispatchEvent(new Event("storage"));
+}
+function readVault(recordId: string): Vault | null {
+  try {
+    return JSON.parse(localStorage.getItem(vaultKey(recordId)) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+type Snapshot = { stats: Stats; rows: Row[]; requests: DisclosureRequest[] };
+
+async function snapshot(client: ProofLane): Promise<Snapshot> {
+  const [stats, ledger, reqs, trust] = await Promise.all([
+    client.request<Stats>("/api/v1/stats"),
+    client.request<{ entries: (Entry & { receipt: ReceiptV2 })[] }>("/api/v1/receipts"),
+    client.request<{ requests: DisclosureRequest[] }>("/api/v1/disclosure-requests"),
+    fetch("/api/keys").then((r) => r.json() as Promise<TrustAnchor>),
+  ]);
+  // Every ledger row is re-verified in this browser against the pinned keys.
+  const rows = await Promise.all(
+    ledger.entries.map(async (e) => ({ ...e, ...(await verifyReceipt(e.receipt, trust)) }))
+  );
+  return { stats, rows, requests: reqs.requests };
+}
+
+export default function ConsolePage() {
+  const raw = useSyncExternalStore(subscribe, readSession, () => null);
+  const session = useMemo(() => (raw ? (JSON.parse(raw) as Session) : null), [raw]);
+  return session ? <WorkspaceConsole session={session} /> : <Onboarding />;
+}
+
+/* ── onboarding ───────────────────────────────────────────────────────── */
+
+function Onboarding() {
+  const [name, setName] = useState("Northstar Payments");
+  const [apiKey, setApiKey] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/v1/workspaces", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      saveSession({ workspaceId: data.workspace.id, name: data.workspace.name, apiKey: data.apiKey });
+      toast.success("Workspace created. Your API key is stored in this browser — copy it from the Integrate tab.");
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signIn() {
+    setBusy(true);
+    try {
+      const stats = await new ProofLane({ apiKey, agent: "console" }).request<Stats>("/api/v1/stats");
+      saveSession({ workspaceId: stats.workspace.id, name: stats.workspace.name, apiKey });
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight">ProofLane Console</h1>
+        <p className="text-sm text-muted-foreground">
+          Put an evidence gateway in front of your agent&apos;s consequential tools.
+          Every call is policy-checked and sealed into a CooL receipt before it runs.
+        </p>
+      </section>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create a workspace</CardTitle>
+            <CardDescription>Get an API key and a private transparency log.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="ws-name">Workspace name</FieldLabel>
+                <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} />
+              </Field>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={create} disabled={busy || !name.trim()}>
+              {busy && <Spinner data-icon="inline-start" />}
+              Create workspace
+            </Button>
+          </CardFooter>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Use an API key</CardTitle>
+            <CardDescription>Open an existing workspace.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="api-key">API key</FieldLabel>
+                <Input
+                  id="api-key"
+                  type="password"
+                  className="font-mono"
+                  placeholder="pl_live_…"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+              </Field>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" onClick={signIn} disabled={busy || !apiKey.trim()}>
+              Open workspace
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ── workspace ────────────────────────────────────────────────────────── */
+
+function WorkspaceConsole({ session }: { session: Session }) {
+  const client = useMemo(
+    () =>
+      new ProofLane({
+        apiKey: session.apiKey,
+        agent: "payments-agent",
+        software: { name: "payments-agent", version: "2.0.0" },
+        onReceipt: (receipt, vault) => {
+          try {
+            localStorage.setItem(vaultKey(receipt.record.record_id), JSON.stringify(vault));
+          } catch {}
+        },
+      }),
+    [session]
+  );
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [requests, setRequests] = useState<DisclosureRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const apply = useCallback((data: Snapshot) => {
+    setStats(data.stats);
+    setRows(data.rows);
+    setRequests(data.requests);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      apply(await snapshot(client));
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [client, apply]);
+
+  useEffect(() => {
+    snapshot(client).then(apply, (e) => toast.error(message(e)));
+  }, [client, apply]);
+
+  const pending = requests.filter((r) => r.status === "pending").length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{session.name}</h1>
+          <span className="font-mono text-xs text-muted-foreground">{session.workspaceId}</span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {stats && (
+            <StatusBadge status={stats.durable ? "neutral" : "simulated"}>
+              {stats.durable ? "durable ledger" : "in-memory ledger"}
+            </StatusBadge>
+          )}
+          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+            {loading ? <Spinner data-icon="inline-start" /> : <ArrowsClockwise data-icon="inline-start" />}
+            Refresh
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => saveSession(null)}>
+            <SignOut data-icon="inline-start" />
+            Sign out
+          </Button>
+        </div>
+      </section>
+
+      <Tabs defaultValue="run">
+        <TabsList>
+          <TabsTrigger value="run">Run agent</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger ({rows.length})</TabsTrigger>
+          <TabsTrigger value="auditors">Auditors{pending ? ` (${pending})` : ""}</TabsTrigger>
+          <TabsTrigger value="coverage">Coverage</TabsTrigger>
+          <TabsTrigger value="integrate">Integrate</TabsTrigger>
+        </TabsList>
+        <TabsContent value="run">
+          <Playground client={client} onDone={refresh} />
+        </TabsContent>
+        <TabsContent value="ledger">
+          <Ledger rows={rows} />
+        </TabsContent>
+        <TabsContent value="auditors">
+          <Auditors client={client} requests={requests} onDone={refresh} />
+        </TabsContent>
+        <TabsContent value="coverage">
+          <Coverage stats={stats} rows={rows} />
+        </TabsContent>
+        <TabsContent value="integrate">
+          <Integrate apiKey={session.apiKey} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ── run agent ────────────────────────────────────────────────────────── */
+
+const PRESETS = [
+  { label: "$4,200 · one approver", amount: "4200", approvers: "alice@northstar.example" },
+  { label: "$48,200 · one approver", amount: "48200", approvers: "alice@northstar.example" },
+  { label: "$48,200 · dual control", amount: "48200", approvers: "alice@northstar.example, bob@northstar.example" },
+  { label: "$900 · no approver", amount: "900", approvers: "" },
+];
+
+function Playground({ client, onDone }: { client: ProofLane; onDone: () => Promise<void> }) {
+  const [amount, setAmount] = useState("48200");
+  const [beneficiary, setBeneficiary] = useState("Harbor Freight Logistics Ltd");
+  const [approvers, setApprovers] = useState("alice@northstar.example, bob@northstar.example");
+  const [approvalId, setApprovalId] = useState("APR-2026-0912-7731");
+  const [failTool, setFailTool] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [outcome, setOutcome] = useState<{ ok: boolean; title: string; detail: string } | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setOutcome(null);
+    // The SDK wraps the bank tool exactly as it would inside a real agent.
+    const releasePayment = client.guard(
+      "payment.release",
+      async (args: PaymentArgs) => {
+        if (failTool) throw new Error("bank rail timeout");
+        return { status: "released", txn_id: `TXN-${Date.now()}`, amount: args.amount };
+      },
+      (args) => ({ id: args.approval_id, approvers: args.approvers })
+    );
+    try {
+      const result = await releasePayment({
+        amount: Number(amount),
+        currency: "USD",
+        beneficiary,
+        account: "GB29 NWBK 6016 1331 9268 19",
+        approval_id: approvalId,
+        approvers: approvers.split(",").map((a) => a.trim()).filter(Boolean),
+      });
+      setOutcome({
+        ok: true,
+        title: "Payment released",
+        detail: `${result.txn_id} — authorization and completion receipts sealed under one execution id.`,
+      });
+    } catch (e) {
+      setOutcome(
+        e instanceof ProofLaneBlockedError
+          ? {
+              ok: false,
+              title: `Blocked by policy · ${e.decision.decision}`,
+              detail: `Rule ${e.decision.rule ?? "fallback"}. The tool never ran — and the refusal itself is a signed receipt.`,
+            }
+          : { ok: false, title: "Action did not complete", detail: message(e) }
+      );
+    } finally {
+      setBusy(false);
+      void onDone();
+    }
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>payments-agent · payment.release</CardTitle>
+          <CardDescription>
+            Synthetic tool call routed through <code className="font-mono">proof.guard()</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => (
+              <Button
+                key={p.label}
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setAmount(p.amount);
+                  setApprovers(p.approvers);
+                }}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="amount">Amount (USD)</FieldLabel>
+              <Input id="amount" type="number" min={0} className="font-mono" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <FieldDescription>
+                ${HIGH_VALUE_THRESHOLD.toLocaleString()} or more requires dual control.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="beneficiary">Beneficiary</FieldLabel>
+              <Input id="beneficiary" value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="approvers">Approvers (comma-separated)</FieldLabel>
+              <Input id="approvers" value={approvers} onChange={(e) => setApprovers(e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="approval-id">Approval ID</FieldLabel>
+              <Input id="approval-id" className="font-mono" value={approvalId} onChange={(e) => setApprovalId(e.target.value)} />
+            </Field>
+            <Field orientation="horizontal">
+              <Switch id="fail" checked={failTool} onCheckedChange={setFailTool} />
+              <FieldLabel htmlFor="fail">Simulate a bank-rail failure after authorization</FieldLabel>
+            </Field>
+          </FieldGroup>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={run} disabled={busy || !approvalId.trim() || amount === ""}>
+            {busy ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
+            Run agent
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <div className="flex flex-col gap-4">
+        {outcome && (
+          <Alert variant={outcome.ok ? "default" : "destructive"}>
+            {outcome.ok ? <ShieldCheck weight="fill" /> : <ShieldWarning weight="fill" />}
+            <AlertTitle>{outcome.title}</AlertTitle>
+            <AlertDescription>{outcome.detail}</AlertDescription>
+          </Alert>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Active policy</CardTitle>
+            <CardDescription className="font-mono">{PAYMENT_POLICY.id} · strictest rule wins · fallback {PAYMENT_POLICY.fallback}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Decision</TableHead>
+                  <TableHead>Why</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {PAYMENT_POLICY.rules.map((rule) => (
+                  <TableRow key={rule.id}>
+                    <TableCell className="font-mono text-xs">{rule.id}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={rule.decision === "approved" ? "neutral" : "invalid"}>{rule.decision}</StatusBadge>
+                    </TableCell>
+                    <TableCell className="min-w-48 whitespace-normal text-muted-foreground">{rule.because}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+          <CardFooter className="text-xs text-muted-foreground">
+            Evaluated by the CooL policy engine; the decision and policy hash are sealed into every authorization receipt.
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ── ledger ───────────────────────────────────────────────────────────── */
+
+function Ledger({ rows }: { rows: Row[] }) {
+  const [selected, setSelected] = useState<Row | null>(null);
+  if (!rows.length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>No receipts yet</CardTitle>
+          <CardDescription>Run the agent to seal your first receipt.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Receipt ledger</CardTitle>
+        <CardDescription>
+          Operator index over sealed receipts. Verdicts are recomputed in this browser against the pinned operator keys.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Sealed</TableHead>
+              <TableHead>Event</TableHead>
+              <TableHead>Execution</TableHead>
+              <TableHead>Summary</TableHead>
+              <TableHead>Verdict</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const ok = row.verdict.ok && (!row.pin || row.pin.ok);
+              return (
+                <TableRow key={row.record_id} className="cursor-pointer" onClick={() => setSelected(row)}>
+                  <TableCell className="font-mono text-xs">{new Date(row.sealed_at).toLocaleTimeString()}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={/\.(blocked|denied|failed)$/.test(row.type) ? "invalid" : "neutral"}>{row.type}</StatusBadge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{row.execution_id}</TableCell>
+                  <TableCell className="min-w-48 whitespace-normal text-muted-foreground">{row.summary}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={ok ? "verified" : "invalid"}>{ok ? "valid" : "invalid"}</StatusBadge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+      <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+          {selected && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="font-mono">{selected.type}</SheetTitle>
+                <SheetDescription>{selected.summary}</SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 px-4 pb-4">
+                <VerdictCard verdict={selected.verdict} pin={selected.pin} />
+                <ReceiptView receipt={selected.receipt} />
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </Card>
+  );
+}
+
+/* ── auditors ─────────────────────────────────────────────────────────── */
+
+function Auditors({
+  client,
+  requests,
+  onDone,
+}: {
+  client: ProofLane;
+  requests: DisclosureRequest[];
+  onDone: () => Promise<void>;
+}) {
+  const [label, setLabel] = useState("Dispute PAY-88213");
+  const [link, setLink] = useState<string | null>(null);
+  const [manual, setManual] = useState<{ request: DisclosureRequest; value: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function createLink() {
+    try {
+      const { share } = await client.share(label);
+      setLink(`${window.location.origin}/share/${share.token}`);
+    } catch (e) {
+      toast.error(message(e));
+    }
+  }
+
+  async function decide(request: DisclosureRequest, approve: boolean, value?: string) {
+    setBusy(true);
+    try {
+      if (approve) {
+        const stored = value ?? readVault(request.record_id)?.[request.field as keyof Vault];
+        if (!stored) {
+          setManual({ request, value: "" });
+          return;
+        }
+        await client.approveDisclosure(request.id, stored);
+        toast.success(`Disclosed ${request.field} — verified against the sealed commitment`);
+      } else {
+        await client.denyDisclosure(request.id);
+        toast.success("Request denied — the denial is receipted");
+      }
+      setManual(null);
+      await onDone();
+    } catch (e) {
+      toast.error(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Evidence room link</CardTitle>
+          <CardDescription>
+            Share every receipt in this workspace with an auditor, customer, or investigator. They verify in
+            their browser, see only commitments, and can request a single field. Links expire in 7 days.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="share-label">Label</FieldLabel>
+              <Input id="share-label" value={label} onChange={(e) => setLabel(e.target.value)} />
+            </Field>
+          </FieldGroup>
+          {link && (
+            <Alert>
+              <LinkSimple />
+              <AlertTitle>Evidence room ready</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                <a href={link} target="_blank" rel="noreferrer" className="font-mono break-all">
+                  {link}
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Copy link"
+                  onClick={() => navigator.clipboard.writeText(link).then(() => toast.success("Link copied"))}
+                >
+                  <Copy />
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter>
+          <Button onClick={createLink}>
+            <LinkSimple data-icon="inline-start" />
+            Create link
+          </Button>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Disclosure requests</CardTitle>
+          <CardDescription>
+            Approving sends the plaintext this browser kept for that receipt. ProofLane checks it against the
+            sealed commitment before releasing it, and seals the decision.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {requests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No requests yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Field</TableHead>
+                  <TableHead>Record</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.requester}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.field}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.record_id}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={r.status === "denied" ? "invalid" : r.status === "approved" ? "verified" : "neutral"}>
+                        {r.status}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.status === "pending" && (
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" onClick={() => decide(r, true)} disabled={busy}>
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => decide(r, false)} disabled={busy}>
+                            Deny
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!manual} onOpenChange={(open) => !open && setManual(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Provide the original {manual?.request.field}</DialogTitle>
+            <DialogDescription>
+              This browser has no stored plaintext for that receipt. Paste the exact value your system committed;
+              anything else is rejected.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            className="h-32 font-mono text-xs"
+            value={manual?.value ?? ""}
+            onChange={(e) => manual && setManual({ ...manual, value: e.target.value })}
+          />
+          <DialogFooter>
+            <Button
+              onClick={() => manual && decide(manual.request, true, manual.value)}
+              disabled={busy || !manual?.value}
+            >
+              Disclose
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* ── coverage ─────────────────────────────────────────────────────────── */
+
+function Coverage({ stats, rows }: { stats: Stats | null; rows: Row[] }) {
+  const c = stats?.counters ?? {};
+  const invalid = rows.filter((r) => !(r.verdict.ok && (!r.pin || r.pin.ok))).length;
+  const tiles = [
+    ["Attempted actions", c.attempted ?? 0, "reached the gateway"],
+    ["Authorized", c.authorized ?? 0, "receipt sealed before the tool ran"],
+    ["Blocked by policy", c.blocked ?? 0, "refusal receipted, tool never ran"],
+    ["Completed", c.completed ?? 0, "outcome receipt sealed"],
+    ["Tool failures", c.tool_failed ?? 0, "failure receipted after authorization"],
+    ["Seal failures", c.failed ?? 0, "action denied — no receipt, no action"],
+    ["Log entries", stats?.log_size ?? 0, "one RFC 6962 tree for the workspace"],
+    ["Invalid receipts", invalid, "of the latest 50, re-verified here"],
+  ] as const;
+  return (
+    <div className="flex flex-col gap-4">
+      {c.failed ? (
+        <Alert variant="destructive">
+          <ShieldWarning weight="fill" />
+          <AlertTitle>Capture loss detected</AlertTitle>
+          <AlertDescription>{c.failed} action(s) could not be sealed and were refused.</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {tiles.map(([label, value, hint]) => (
+          <Card key={label} size="sm">
+            <CardHeader>
+              <CardDescription>{label}</CardDescription>
+              <CardTitle className="font-mono text-2xl tabular-nums">{value}</CardTitle>
+              <CardDescription className="text-xs">{hint}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>CooL capture path</CardTitle>
+          <CardDescription>Measured by the CooL capture queue on the serverless instance that answered.</CardDescription>
+          <CardAction>
+            <StatusBadge status="simulated">simulated TEE</StatusBadge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="grid gap-2 font-mono text-xs sm:grid-cols-4">
+          <span>p50 enqueue {stats?.capture ? `${stats.capture.p50Ms.toFixed(3)} ms` : "—"}</span>
+          <span>p99 enqueue {stats?.capture ? `${stats.capture.p99Ms.toFixed(3)} ms` : "—"}</span>
+          <span>dropped {stats?.capture?.dropped ?? "—"}</span>
+          <span>high-water {stats?.capture?.highWater ?? "—"}</span>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ── integrate ────────────────────────────────────────────────────────── */
+
+function Integrate({ apiKey }: { apiKey: string }) {
+  const origin = window.location.origin;
+  const snippet = `import { ProofLane } from "./prooflane"; // src/sdk/prooflane.ts
+
+const proof = new ProofLane({
+  apiKey: process.env.PROOFLANE_API_KEY!,
+  agent: "payments-agent",
+  baseUrl: "${origin}",
+  onReceipt: (receipt, vault) => store(receipt.record.record_id, vault),
+});
+
+// Hand this to your agent instead of the raw tool.
+export const releasePayment = proof.guard(
+  "payment.release",
+  bank.releasePayment,                       // async (args) => result
+  (args) => ({ id: args.approval_id, approvers: args.approvers })
+);`;
+  const curl = `curl -X POST ${origin}/api/v1/actions/authorize \\
+  -H "Authorization: Bearer $PROOFLANE_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"action":"payment.release","agent":"payments-agent",
+       "input":"{\\"amount\\":48200}","approval":{"id":"APR-1","approvers":["alice","bob"]}}'`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>API key</CardTitle>
+          <CardDescription>Stored only in this browser. Keep it server-side in production.</CardDescription>
+          <CardAction>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigator.clipboard.writeText(apiKey).then(() => toast.success("API key copied"))}
+            >
+              <Copy data-icon="inline-start" />
+              Copy key
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="font-mono text-xs">{apiKey.slice(0, 12)}••••••••••••{apiKey.slice(-4)}</CardContent>
+      </Card>
+      {[
+        ["Wrap a tool with the SDK", snippet],
+        ["Or call the gateway directly", curl],
+      ].map(([title, code]) => (
+        <Card key={title}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Code size={18} /> {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">{code}</pre>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}

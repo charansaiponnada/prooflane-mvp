@@ -155,13 +155,13 @@ export default function PitchPage() {
         </Card>
         <div className="flex flex-wrap gap-2">
           <Button asChild size="lg">
-            <Link href="/">
-              Run the live demo
+            <Link href="/console">
+              Try the product
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="/verifier">Open the verifier</Link>
+            <Link href="/demo">Run the guided demo</Link>
           </Button>
         </div>
       </section>
@@ -269,7 +269,7 @@ export default function PitchPage() {
           The evidence does not have to come from a system you trust.
         </p>
         <Button asChild size="lg">
-          <Link href="/">
+          <Link href="/demo">
             See it verify — and fail
             <ArrowRight data-icon="inline-end" />
           </Link>
