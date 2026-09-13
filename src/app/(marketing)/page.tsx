@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { DEMO_VIDEO_EMBED, DEMO_VIDEO_URL } from "@/lib/cool-usage";
 import {
   Table,
   TableBody,
@@ -107,6 +108,12 @@ export default function ProductPage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="bg-background">
+              <a href="#video">
+                <Play data-icon="inline-start" />
+                Watch the 3-minute video
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="bg-background">
               <Link href="/pitch.html">
                 <PresentationChart data-icon="inline-start" />
                 Pitch
@@ -125,6 +132,31 @@ export default function ProductPage() {
               </Link>
             </Button>
           </div>
+        </div>
+      </section>
+
+      <section id="video" className="flex scroll-mt-20 flex-col gap-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">See it in 3 minutes — pitch and live demo</h2>
+          <a
+            href={DEMO_VIDEO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-muted-foreground underline-offset-2 hover:underline"
+          >
+            Open on YouTube
+          </a>
+        </div>
+        <div className="aspect-video w-full overflow-hidden rounded-xl border bg-muted">
+          <iframe
+            // Browsers only allow autoplay when muted; viewers unmute with the player controls.
+            src={`${DEMO_VIDEO_EMBED}?autoplay=1&mute=1&playsinline=1&controls=1&rel=0`}
+            title="ProofLane pitch and live demo"
+            className="size-full"
+            allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
         </div>
       </section>
 

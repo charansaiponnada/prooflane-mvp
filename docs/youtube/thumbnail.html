@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ProofLane YouTube thumbnail</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; background: #070b0d; }
+  body { font-family: "Inter", "Segoe UI", Arial, sans-serif; color: #eef4f5; position: relative; }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right, rgb(34 184 207 / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(34 184 207 / 0.08) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 70% 80% at 72% 50%, #000 25%, transparent 80%);
+  }
+  .wrap { position: absolute; inset: 0; padding: 56px 64px; display: grid; grid-template-columns: 1fr 520px; gap: 40px; align-items: center; }
+  .brand { position: absolute; top: 48px; left: 64px; display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 30px; letter-spacing: -0.02em; }
+  .brand svg { width: 40px; height: 40px; color: #22b8cf; }
+  h1 { font-size: 104px; line-height: 0.95; font-weight: 900; letter-spacing: -0.045em; margin-top: 40px; }
+  h1 span { color: #22b8cf; display: block; }
+  .sub { margin-top: 26px; font-size: 30px; font-weight: 600; color: #9fb2b8; letter-spacing: -0.01em; }
+  .sub b { color: #eef4f5; font-weight: 700; }
+
+  .stack { position: relative; height: 520px; }
+  .card { position: absolute; width: 470px; border-radius: 26px; padding: 30px 34px; display: flex; flex-direction: column; gap: 16px; }
+  .card .k { font: 700 18px/1 "JetBrains Mono", Consolas, monospace; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+  .card .amt { font: 700 84px/1 "JetBrains Mono", Consolas, monospace; letter-spacing: -0.04em; }
+  .badge { align-self: flex-start; display: inline-flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 999px; font-weight: 900; font-size: 34px; letter-spacing: 0.06em; }
+  .ok { top: 0; left: 0; background: #0f1a1d; border: 3px solid #1fd39a; box-shadow: 0 0 60px rgb(31 211 154 / 0.25); transform: rotate(-3deg); }
+  .ok .badge { background: #1fd39a; color: #04140e; }
+  .bad { bottom: 0; right: 0; background: #1d0f11; border: 3px solid #f0505a; box-shadow: 0 0 80px rgb(240 80 90 / 0.35); transform: rotate(2.5deg); }
+  .bad .badge { background: #f0505a; color: #1b0306; }
+  .bad .amt { color: #ff8a90; }
+  .arrow { position: absolute; top: 168px; left: 340px; font: 900 72px/1 "Inter", sans-serif; color: #eef4f5; text-shadow: 0 6px 30px #000; transform: rotate(90deg); z-index: 2; }
+  .foot { position: absolute; left: 64px; bottom: 44px; font: 600 20px/1 "JetBrains Mono", Consolas, monospace; color: #6f858c; letter-spacing: 0.02em; }
+  .foot b { color: #22b8cf; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Zm-1.2 13.6-3.5-3.5 1.4-1.4 2.1 2.1 4.9-4.9 1.4 1.4-6.3 6.3Z"/></svg>
+    ProofLane
+  </div>
+  <div class="wrap">
+    <div>
+      <h1>Change one digit.<span>Proof breaks.</span></h1>
+      <p class="sub">Receipts for <b>AI agents that move money</b></p>
+    </div>
+    <div class="stack">
+      <div class="card ok">
+        <span class="k">payment.release · sealed</span>
+        <span class="amt">$48,200</span>
+        <span class="badge">✓ VALID</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="card bad">
+        <span class="k">edited by an insider</span>
+        <span class="amt">$4,820</span>
+        <span class="badge">✕ INVALID</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot">live demo · built on the <b>CooL SDK</b></div>
+</body>
+</html>

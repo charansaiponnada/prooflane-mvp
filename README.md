@@ -6,6 +6,9 @@ ProofLane gates consequential agent actions on policy, seals every decision into
 
 > The evidence does not have to come from a system you trust.
 
+[![ProofLane — 3-minute pitch and live demo](docs/youtube/thumbnail.png)](https://youtu.be/p-M4uQmwT1I)
+
+- **Video (3 min, pitch + live demo):** https://youtu.be/p-M4uQmwT1I
 - **Live product:** https://prooflane-mvp.vercel.app
 - **Console:** https://prooflane-mvp.vercel.app/console · **Guided demo:** https://prooflane-mvp.vercel.app/demo · **Pitch:** https://prooflane-mvp.vercel.app/pitch.html
 - **Product docs:** [`docs/PRD.md`](docs/PRD.md) · [`docs/GTM.md`](docs/GTM.md) · [`docs/DESIGN.MD`](docs/DESIGN.MD)

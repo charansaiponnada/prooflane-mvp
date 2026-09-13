@@ -3,6 +3,8 @@
 export const REPO_URL = "https://github.com/charansaiponnada/prooflane-mvp";
 export const COOL_SDK_URL = "https://github.com/Northwind-Cipher/cool-sdk";
 export const sourceUrl = (file: string) => `${REPO_URL}/blob/main/${file}`;
+export const DEMO_VIDEO_URL = "https://youtu.be/p-M4uQmwT1I";
+export const DEMO_VIDEO_EMBED = "https://www.youtube-nocookie.com/embed/p-M4uQmwT1I";
 
 export type CoolMetric =
   | "sealed"

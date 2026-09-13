@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { setHash, useHash } from "@/hooks/use-hash";
-import { COOL_SDK_URL, COOL_USAGE, REPO_URL, sourceUrl } from "@/lib/cool-usage";
+import { COOL_SDK_URL, COOL_USAGE, DEMO_VIDEO_URL, REPO_URL, sourceUrl } from "@/lib/cool-usage";
 import { cn } from "@/lib/utils";
 
 /* ── type scale: everything is sized in container-width units, so a slide
@@ -483,7 +483,9 @@ const slides: Slide[] = [
           <div className="flex gap-[0.8cqw]">
             <Link href="/demo" className="rounded-[0.6cqw] bg-primary px-[1.4cqw] py-[0.7cqw] text-[1.2cqw] font-medium text-primary-foreground">Guided demo</Link>
             <Link href="/console" className="rounded-[0.6cqw] border px-[1.4cqw] py-[0.7cqw] text-[1.2cqw] font-medium">Console</Link>
+            <a href={DEMO_VIDEO_URL} target="_blank" rel="noreferrer" className="rounded-[0.6cqw] border px-[1.4cqw] py-[0.7cqw] text-[1.2cqw] font-medium">Video</a>
           </div>
+          <span className={T.small}>3-minute pitch + demo video · youtu.be/p-M4uQmwT1I</span>
         </Panel>
       </div>
     ),
