@@ -9,8 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const links = [
   { href: "/", label: "Control Room" },
   { href: "/verifier", label: "Verifier" },
-  { href: "/coverage", label: "Coverage" },
-  { href: "/gateway", label: "Gateway" },
+  { href: "/pitch.html", label: "Pitch" },
 ];
 
 export function SiteNav() {

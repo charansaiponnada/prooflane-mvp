@@ -86,6 +86,9 @@ jspm_packages/
 # Next.js build output
 .next
 
+# Vercel
+.vercel
+
 # Nuxt.js build / generate output
 .nuxt
 

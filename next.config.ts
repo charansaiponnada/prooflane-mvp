@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  rewrites() {
+    return [{ source: "/pitch.html", destination: "/pitch" }];
+  },
 };
 
 export default nextConfig;

@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { SiteNav } from "@/components/site-nav";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -19,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "ProofLane — Evidence Gateway",
   description:
-    "Tamper-evident evidence capture for actions that change digital risk.",
+    "Independently verifiable, privacy-preserving execution receipts for consequential AI-agent actions.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -36,10 +37,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <footer className="border-t py-4 text-center text-xs text-muted-foreground">
-            ProofLane — hackathon demo environment. Receipts are verified
-            against cold integrity roots; attestation is{" "}
+            ProofLane — hackathon demo on synthetic data. Receipts are real
+            CooL receipts; attestation is{" "}
             <span className="font-mono">simulated</span>, not hardware-backed.
           </footer>
+          <Toaster />
         </Providers>
       </body>
     </html>
