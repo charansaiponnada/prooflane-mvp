@@ -1,4 +1,4 @@
-import Link from "next/link";
+ import Link from "next/link";
 import { ArrowRight, GithubLogo } from "@phosphor-icons/react/dist/ssr";
 import { Brand, GITHUB_URL } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
